@@ -1,217 +1,198 @@
-import React, { useState, useEffect, createContext, useContext, useMemo } from 'react';
-import { createBrowserRouter, RouterProvider, NavLink, Outlet } from 'react-router-dom';
+import React, { useState, useEffect, createContext, useContext, useMemo, useRef, RefObject } from 'react';
+import { createBrowserRouter, RouterProvider, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
-// --- 1. 主題管理 (ThemeContext.tsx) ---
-// 我們建立一個 Context 來全域管理淺色/深色模式的狀態。
+// --- Custom Hook ---
+function useClickOutside<T extends HTMLElement = HTMLElement>(
+    handler: (event: MouseEvent | TouchEvent) => void,
+): RefObject<T> {
+    const ref = useRef<T>(null);
+    useEffect(() => {
+        const listener = (event: MouseEvent | TouchEvent) => {
+            if (!ref.current || ref.current.contains(event.target as Node)) {
+                return;
+            }
+            handler(event);
+        };
+        document.addEventListener('mousedown', listener);
+        document.addEventListener('touchstart', listener);
+        return () => {
+            document.removeEventListener('mousedown', listener);
+            document.removeEventListener('touchstart', listener);
+        };
+    }, [ref, handler]);
+    return ref;
+}
 
+// --- 1. 主題管理 (ThemeContext) ---
 type Theme = 'light' | 'dark';
-type ThemeContextType = {
-    theme: Theme;
-    toggleTheme: () => void;
-};
-
+type ThemeContextType = { theme: Theme; toggleTheme: () => void; };
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-    const [theme, setTheme] = useState<Theme>(() => {
-        // 優先從 localStorage 讀取使用者先前的選擇，若無則跟隨系統設定
-        const savedTheme = localStorage.getItem('theme') as Theme;
-        if (savedTheme) return savedTheme;
-        return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-    });
-
+    const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme | null) || 'dark');
     useEffect(() => {
-        const root = window.document.documentElement;
-        root.classList.remove('light', 'dark');
-        root.classList.add(theme);
+        document.documentElement.className = theme;
         localStorage.setItem('theme', theme);
     }, [theme]);
-
-    const toggleTheme = () => {
-        setTheme((prevTheme) => (prevTheme === 'light' ? 'dark' : 'light'));
-    };
-
+    const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
     const value = useMemo(() => ({ theme, toggleTheme }), [theme]);
-
     return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
 };
-
 export const useTheme = () => {
     const context = useContext(ThemeContext);
-    if (context === undefined) {
-        throw new Error('useTheme 必須在 ThemeProvider 內使用');
-    }
+    if (!context) throw new Error('useTheme must be used within a ThemeProvider');
     return context;
 };
 
-
-// --- 2. 可重複使用的 UI 元件 (components) ---
-
-// 主題切換按鈕 (ThemeToggle.tsx)
+// --- 2. UI (Components) ---
+const StarryBackground = () => (
+    <>
+        <div className="absolute top-0 left-0 w-full h-full bg-white dark:bg-[#0A0A0A] transition-colors duration-300 -z-20"></div>
+        <div className="absolute top-0 left-0 w-full h-full stars -z-10"></div>
+        <div className="absolute top-0 left-0 w-full h-full stars2 -z-10"></div>
+        <div className="absolute top-0 left-0 w-full h-full stars3 -z-10"></div>
+        <style>{`@keyframes move-twink-back{from{background-position:0 0}to{background-position:-10000px 5000px}}.stars,.stars2,.stars3{position:absolute;top:0;left:0;right:0;bottom:0;width:100%;height:100%;display:block;background:transparent url(https://www.script-tutorials.com/demos/360/images/stars.png) repeat top center;animation:move-twink-back 200s linear infinite;opacity:0;transition:opacity .5s ease-in-out}.dark .stars{opacity:.4}.stars2{background-image:url(https://www.script-tutorials.com/demos/360/images/twinkling.png);animation-duration:150s}.dark .stars2{opacity:.7}.stars3{background-image:url(https://www.script-tutorials.com/demos/360/images/clouds.png);animation-duration:100s}.light .stars3{opacity:.1}.dark .stars3{opacity:.2}`}</style>
+    </>
+);
 const ThemeToggleButton = () => {
     const { theme, toggleTheme } = useTheme();
-
     return (
-        <button
-            onClick={toggleTheme}
-            className="p-2 rounded-full bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
-            aria-label="切換主題"
-        >
-            {theme === 'light' ? (
-                // 月亮圖示 (深色模式)
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" />
-                </svg>
-            ) : (
-                // 太陽圖示 (淺色模式)
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                    <path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM10 18a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM5.05 14.95a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zm1.414-9.192a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414L6.464 6.464a1 1 0 010-1.414z" clipRule="evenodd" />
-                </svg>
-            )}
+        <button onClick={toggleTheme} className="p-2 rounded-full bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-white/20 transition-colors" aria-label="切換主題">
+            {theme === 'light' ? <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z" /></svg> : <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.707.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM10 18a1 1 0 01-1-1v-1a1 1 0 112 0v1a1 1 0 01-1 1zM5.05 14.95a1 1 0 010-1.414l.707-.707a1 1 0 111.414 1.414l-.707.707a1 1 0 01-1.414 0zm1.414-9.192a1 1 0 011.414 0l.707.707a1 1 0 11-1.414 1.414L6.464 6.464a1 1 0 010-1.414z" clipRule="evenodd" /></svg>}
         </button>
     );
 };
 
+// SubNavItemConfig
+type SubNavItemConfig = { name: string; path: string; children?: { name: string; path: string; }[]; }
+const CollapsibleMenuItem = ({ item }: { item: SubNavItemConfig }) => {
+    const location = useLocation();
+    const isParentActive = item.children?.some(child => location.pathname.startsWith(child.path));
+    const [isOpen, setIsOpen] = useState(isParentActive || false);
+    useEffect(() => { setIsOpen(isParentActive || false); }, [isParentActive, location.pathname]);
 
-// --- 3. 頁面佈局 (layouts/MainLayout.tsx) ---
-// 這是我們的「應用程式外殼」，包含了兩層側邊欄。
+    if (!item.children) {
+        return <NavLink to={item.path} className="flex items-center px-4 py-2.5 text-sm font-medium rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10">{item.name}</NavLink>;
+    }
+
+    return (
+        <div>
+            <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors">
+                <span>{item.name}</span>
+                <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+            </button>
+            {isOpen && <div className="mt-1 pl-4 border-l border-gray-200 dark:border-gray-700 ml-2">{item.children.map(child => <NavLink key={child.name} to={child.path} className="flex items-center my-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10">{child.name}</NavLink>)}</div>}
+        </div>
+    );
+};
+
+// 3. Layout and Pages
+
+type NavItemConfig = { name: string; path: string; icon: React.ReactNode; children?: SubNavItemConfig[]; };
+const navConfig: NavItemConfig[] = [
+    { name: '儀表板', path: '/', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> },
+    { name: '記帳系統', path: '/expenses', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>, children: [{ name: '儀表板', path: '/expenses' }, { name: '交易紀錄', path: '/expenses/transactions' }, { name: '圖表分析', path: '/expenses/charts' },] },
+    { name: '健身紀錄', path: '/fitness', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>, children: [{ name: '訓練日誌', path: '/fitness' }, { name: '動作庫', path: '/fitness/exercises' },] },
+];
+const userNavConfig: NavItemConfig[] = [
+    { name: '設定', path: '/settings', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.096 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg> },
+];
 
 const MainLayout = () => {
+    const location = useLocation();
+    const navigate = useNavigate();
+
+    const activeSubMenuConfig = useMemo(() =>
+        navConfig.find(item => item.children && location.pathname.startsWith(item.path))
+        , [location.pathname]);
+
+    const [isSubMenuOpen, setIsSubMenuOpen] = useState(!!activeSubMenuConfig);
+
+    const subMenuRef = useClickOutside<HTMLElement>(() => {
+        if (activeSubMenuConfig) {
+            setIsSubMenuOpen(false);
+        }
+    });
+
+    const handleMainMenuClick = (item: NavItemConfig) => {
+        const isModuleAlreadyActive = item.path === '/'
+            ? location.pathname === '/'
+            : location.pathname.startsWith(item.path);
+
+        const canToggle = !!item.children;
+
+        if (isModuleAlreadyActive && canToggle) {
+            setIsSubMenuOpen(prev => !prev);
+        } else {
+            navigate(item.path);
+        }
+    };
+
     return (
-        <div className="flex h-screen bg-white dark:bg-[#111111] text-gray-800 dark:text-gray-300 transition-colors">
-            {/* 主側邊欄 (Primary Sidebar) */}
-            <aside className="w-20 bg-gray-100 dark:bg-black/30 border-r border-gray-200 dark:border-white/10 flex flex-col items-center py-6">
-                <div className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white text-xl mb-12 shadow-lg shadow-indigo-500/20">C</div>
-                <nav className="flex flex-col items-center space-y-4">
-                    <NavLink to="/" title="總覽" className={({ isActive }) => `p-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'}`}>
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path></svg>
-                    </NavLink>
-                    <NavLink to="/expenses" title="記帳系統" className={({ isActive }) => `p-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 hover:text-gray-900 dark:hover:text-white'}`}>
-                        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                    </NavLink>
-                </nav>
-            </aside>
-
-            {/* 主內容區，<Outlet /> 會根據路由渲染對應的頁面 */}
-            <div className="flex-1 flex flex-col">
-                <main className="flex-1 overflow-y-auto">
-                    <Outlet />
-                </main>
-            </div>
-        </div>
-    );
-};
-
-// --- 4. 頁面元件 (pages) ---
-
-// 歡迎頁面 (DashboardPage.tsx)
-const DashboardPage = () => {
-    return (
-        <div className="p-8">
-            <header className="h-20 flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">歡迎來到 Constellation</h1>
-                <ThemeToggleButton />
-            </header>
-            <div className="bg-gray-100 dark:bg-white/5 p-6 rounded-xl border border-gray-200 dark:border-white/10">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Portal 框架</h3>
-                <p className="text-gray-600 dark:text-gray-400 mt-2">
-                    這是一個基礎的歡迎頁面。接下來，我們可以點擊左側的「記帳系統」圖示，
-                    來查看帶有「子側邊欄」的複雜頁面佈局。
-                </p>
-            </div>
-        </div>
-    );
-};
-
-// 記帳系統的佈局和頁面 (ExpenseLayout.tsx, ExpenseDashboard.tsx)
-const ExpenseLayout = () => {
-    return (
-        <div className="flex h-full">
-            {/* 子側邊欄 (Secondary Sidebar) */}
-            <aside className="w-64 bg-white dark:bg-black/10 border-r border-gray-200 dark:border-white/10 flex flex-col">
-                <div className="p-6 h-20 flex items-center">
-                    <h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">記帳系統</h2>
+        <div className="relative flex h-screen bg-transparent text-gray-900 dark:text-gray-200">
+            <StarryBackground />
+            <aside className="w-20 flex-shrink-0 bg-gray-100/80 dark:bg-black/30 backdrop-blur-xl border-r border-gray-200 dark:border-white/10 flex flex-col items-center justify-between py-6 z-20">
+                <div>
+                    <button onClick={() => navigate('/')} className="w-10 h-10 bg-indigo-600 rounded-lg flex items-center justify-center font-bold text-white text-xl mb-12 shadow-lg shadow-indigo-500/20">C</button>
+                    <nav className="flex flex-col items-center space-y-4">
+                        {navConfig.map(item => {
+                            const isActive = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
+                            return (
+                                <button key={item.name} title={item.name} onClick={() => handleMainMenuClick(item)} className={`p-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10'}`}>
+                                    {item.icon}
+                                </button>
+                            );
+                        })}
+                    </nav>
                 </div>
-                <nav className="flex-1 px-4 py-2 space-y-1">
-                    <NavLink to="/expenses" end className={({ isActive }) => `block px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${isActive ? 'text-white bg-indigo-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}>儀表板</NavLink>
-                    <NavLink to="/expenses/transactions" className={({ isActive }) => `block px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${isActive ? 'text-white bg-indigo-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}>交易紀錄</NavLink>
-                    <NavLink to="/expenses/charts" className={({ isActive }) => `block px-4 py-2.5 text-sm font-medium rounded-lg transition-colors ${isActive ? 'text-white bg-indigo-600' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-white/5'}`}>圖表分析</NavLink>
-                </nav>
+                <div className="flex flex-col items-center space-y-4">
+                    <div className="w-8 h-px bg-gray-300 dark:bg-gray-700 my-2"></div>
+                    {userNavConfig.map(item => {
+                        const isActive = location.pathname.startsWith(item.path);
+                        return (
+                            <button key={item.name} onClick={() => handleMainMenuClick(item)} title={item.name} className={`p-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10'}`}>
+                                {item.icon}
+                            </button>
+                        );
+                    })}
+                    <button title="使用者名稱" className="w-10 h-10 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 font-semibold">YC</button>
+                </div>
             </aside>
-            {/* 記帳系統的內容區 */}
-            <div className="flex-1">
-                <Outlet />
+            <div className="flex-1 flex overflow-x-hidden">
+                {activeSubMenuConfig && (
+                    <aside ref={subMenuRef} className={`w-64 flex-shrink-0 bg-gray-50/90 dark:bg-[#111111]/90 backdrop-blur-xl border-r border-gray-200 dark:border-white/10 flex flex-col transition-margin duration-300 ease-in-out ${isSubMenuOpen ? 'ml-0' : '-ml-64'}`}>
+                        <div className="p-6 h-20 flex-shrink-0 flex items-center"><h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{activeSubMenuConfig.name}</h2></div>
+                        <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">{activeSubMenuConfig.children?.map(child => <CollapsibleMenuItem key={child.name} item={child} />)}</nav>
+                    </aside>
+                )}
+                <main className="flex-1 flex flex-col overflow-y-auto"><div className="flex-1 p-8"><Outlet /></div></main>
             </div>
         </div>
     );
 };
 
-const ExpenseDashboard = () => {
-    return (
-        <div className="p-8">
-            <header className="h-20 flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">記帳儀表板</h1>
-                <button className="bg-indigo-600 text-white px-5 py-2.5 rounded-lg text-sm font-semibold hover:bg-indigo-500 transition-colors">
-                    新增一筆支出
-                </button>
-            </header>
-            <div className="bg-gray-100 dark:bg-white/5 p-6 rounded-xl border border-gray-200 dark:border-white/10">
-                <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">內容區域</h3>
-                <p className="text-gray-600 dark:text-gray-400 mt-2">這裡將會顯示記帳系統的儀表板圖表與數據。</p>
-            </div>
-        </div>
-    );
-};
-
-const TransactionsPage = () => {
-    return (
-        <div className="p-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">交易紀錄</h1>
-        </div>
-    );
-};
-
-const ChartsPage = () => {
-    return (
-        <div className="p-8">
-            <h1 className="text-3xl font-bold text-gray-900 dark:text-white">圖表分析</h1>
-        </div>
-    );
-};
-
-
-// --- 5. 路由設定 (App.tsx) ---
-// 我們使用巢狀路由來實現我們的佈局。
+const WelcomePage = () => (
+    <>
+        <header className="flex justify-between items-center mb-8"><h1 className="text-3xl font-bold">歡迎來到 Constellation 儀表板</h1><ThemeToggleButton /></header>
+        <div className="bg-gray-100 dark:bg-white/5 backdrop-blur-sm p-6 rounded-xl border border-gray-200 dark:border-white/10"><h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">探索你的宇宙</h3><p className="text-gray-600 dark:text-gray-300 mt-2">這裡是您所有生活模組的資訊中心，點擊左側圖示開始探索。</p></div>
+    </>
+);
+const GenericPage = ({ title }: { title: string }) => (
+    <header className="flex justify-between items-center"><h1 className="text-3xl font-bold">{title}</h1><ThemeToggleButton /></header>
+);
 
 const router = createBrowserRouter([
     {
         path: "/",
-        element: <MainLayout />, // MainLayout 是所有頁面的「外殼」
+        element: <MainLayout />,
         children: [
-            {
-                index: true, // 預設路徑 (/)
-                element: <DashboardPage />,
-            },
-            {
-                path: "expenses",
-                element: <ExpenseLayout />, // 記帳系統有自己的「子外殼」
-                children: [
-                    {
-                        index: true, // 預設路徑 (/expenses)
-                        element: <ExpenseDashboard />,
-                    },
-                    {
-                        path: "transactions", // /expenses/transactions
-                        element: <TransactionsPage />,
-                    },
-                    {
-                        path: "charts", // /expenses/charts
-                        element: <ChartsPage />,
-                    },
-                ],
-            },
-            // 未來可以新增更多應用程式的路由
-            // { path: "fitness", element: <FitnessLayout /> ... }
+            { index: true, element: <WelcomePage /> },
+            { path: "expenses", element: <GenericPage title="記帳儀表板" /> },
+            { path: "expenses/transactions", element: <GenericPage title="交易紀錄" /> },
+            { path: "expenses/charts", element: <GenericPage title="圖表分析" /> },
+            { path: "fitness", element: <GenericPage title="訓練日誌" /> },
+            { path: "fitness/exercises", element: <GenericPage title="動作庫" /> },
+            { path: "settings", element: <GenericPage title="設定" /> },
         ],
     },
 ]);
