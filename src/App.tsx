@@ -23,8 +23,6 @@ function useClickOutside<T extends HTMLElement = HTMLElement>(
     return ref;
 }
 
-// --- 1. 全局狀態管理 (Context) ---
-
 // Theme Context
 type Theme = 'light' | 'dark';
 type ThemeContextType = { theme: Theme; toggleTheme: () => void; };
@@ -57,9 +55,7 @@ export const AnimationProvider = ({ children }: { children: React.ReactNode }) =
         const root = document.documentElement;
         if (isAnimationEnabled) {
             root.classList.add('animations-enabled');
-            root.classList.remove('animations-disabled');
         } else {
-            root.classList.add('animations-disabled');
             root.classList.remove('animations-enabled');
         }
         localStorage.setItem('animationEnabled', JSON.stringify(isAnimationEnabled));
@@ -74,48 +70,66 @@ export const useAnimation = () => {
     return context;
 };
 
+// Background Effect Context
+type BackgroundEffectContextType = { isBackgroundEnabled: boolean; toggleBackground: () => void; };
+const BackgroundEffectContext = createContext<BackgroundEffectContextType | undefined>(undefined);
+export const BackgroundEffectProvider = ({ children }: { children: React.ReactNode }) => {
+    const [isBackgroundEnabled, setIsBackgroundEnabled] = useState(() => JSON.parse(localStorage.getItem('backgroundEnabled') || 'true'));
+    useEffect(() => {
+        localStorage.setItem('backgroundEnabled', JSON.stringify(isBackgroundEnabled));
+    }, [isBackgroundEnabled]);
+    const toggleBackground = () => setIsBackgroundEnabled(prev => !prev);
+    const value = useMemo(() => ({ isBackgroundEnabled, toggleBackground }), [isBackgroundEnabled]);
+    return <BackgroundEffectContext.Provider value={value}>{children}</BackgroundEffectContext.Provider>;
+};
+export const useBackgroundEffect = () => {
+    const context = useContext(BackgroundEffectContext);
+    if (!context) throw new Error('useBackgroundEffect must be used within a BackgroundEffectProvider');
+    return context;
+};
+
 
 // --- 2. UI (Components) ---
 
 const StarryBackground = () => {
+    const { isBackgroundEnabled } = useBackgroundEffect();
     const shadowsSmall = useMemo(() => Array.from({ length: 700 }, () => `${Math.floor(Math.random() * 2000)}px ${Math.floor(Math.random() * 2000)}px #FFF`).join(','), []);
     const shadowsMedium = useMemo(() => Array.from({ length: 200 }, () => `${Math.floor(Math.random() * 2000)}px ${Math.floor(Math.random() * 2000)}px #FFF`).join(','), []);
     const shadowsBig = useMemo(() => Array.from({ length: 100 }, () => `${Math.floor(Math.random() * 2000)}px ${Math.floor(Math.random() * 2000)}px #FFF`).join(','), []);
 
+    if (!isBackgroundEnabled) {
+        return <div className="absolute top-0 left-0 w-full h-full bg-slate-50 dark:bg-[#0c0c1d] transition-colors duration-300 -z-20"></div>;
+    }
+
     return (
         <>
-            <div className="absolute top-0 left-0 w-full h-full bg-slate-50 dark:bg-gradient-to-b dark:from-[#0c0c1d] dark:to-[#111132] transition-colors duration-300 -z-20"></div>
+            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-slate-100 to-sky-200 dark:bg-gradient-to-b dark:from-[#0c0c1d] dark:to-[#111132] transition-colors duration-300 -z-20"></div>
             <div id="stars-container" className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10">
                 <div id="stars" style={{ boxShadow: shadowsSmall }}></div>
                 <div id="stars2" style={{ boxShadow: shadowsMedium }}></div>
                 <div id="stars3" style={{ boxShadow: shadowsBig }}></div>
             </div>
             <style>{`
-                #stars-container {
-                    opacity: 0;
-                    transition: opacity 0.8s ease-in-out;
-                }
-                .dark #stars-container {
-                    opacity: 1;
-                }
-                .light #stars-container {
-                    opacity: 0.5;
-                }
-                @keyframes animStar {
-                    from { transform: translateY(0px); }
-                    to { transform: translateY(-2000px); }
-                }
+                #stars-container { opacity: 0; transition: opacity 0.8s ease-in-out; }
+                .dark #stars-container { opacity: 1; }
+                .light #stars-container { opacity: 0.6; }
+                @keyframes animStar { from { transform: translateY(0px); } to { transform: translateY(-2000px); } }
+                
                 #stars, #stars2, #stars3 {
                     position: absolute;
                     top: 0;
                     left: 0;
-                    width: 1px;
-                    height: 1px;
                     background: transparent;
                 }
+                
+                #stars { width: 1px; height: 1px; }
+                #stars2 { width: 2px; height: 2px; }
+                #stars3 { width: 3px; height: 3px; }
+
+                /* Only activate the animation when it's activated */
                 .animations-enabled #stars { animation: animStar 150s linear infinite; }
-                .animations-enabled #stars2 { width: 2px; height: 2px; animation: animStar 100s linear infinite; }
-                .animations-enabled #stars3 { width: 3px; height: 3px; animation: animStar 50s linear infinite; }
+                .animations-enabled #stars2 { animation: animStar 100s linear infinite; }
+                .animations-enabled #stars3 { animation: animStar 50s linear infinite; }
             `}</style>
         </>
     );
@@ -143,6 +157,19 @@ const AnimationToggleButton = () => {
     );
 };
 
+const BackgroundToggleButton = () => {
+    const { isBackgroundEnabled, toggleBackground } = useBackgroundEffect();
+    return (
+        <button onClick={toggleBackground} className="p-2 rounded-full bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-white/20 transition-colors" aria-label="切換背景特效">
+            {isBackgroundEnabled ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+            ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
+            )}
+        </button>
+    );
+};
+
 type SubNavItemConfig = { name: string; path: string; children?: { name: string; path: string; }[]; }
 const CollapsibleMenuItem = ({ item }: { item: SubNavItemConfig }) => {
     const location = useLocation();
@@ -161,7 +188,7 @@ const CollapsibleMenuItem = ({ item }: { item: SubNavItemConfig }) => {
     );
 };
 
-// --- 3. 佈局與頁面 (Layouts & Pages) ---
+// --- 3. Layouts & Pages ---
 
 type NavItemConfig = { name: string; path: string; icon: React.ReactNode; children?: SubNavItemConfig[]; };
 const navConfig: NavItemConfig[] = [
@@ -198,17 +225,17 @@ const MainLayout = () => {
                     <nav className="flex flex-col items-center space-y-4">
                         {navConfig.map(item => {
                             const isActive = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
-                            return ( <button key={item.name} title={item.name} onClick={() => handleMainMenuClick(item)} className={`p-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10'}`}>{item.icon}</button> );
+                            return (<button key={item.name} title={item.name} onClick={() => handleMainMenuClick(item)} className={`p-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10'}`}>{item.icon}</button>);
                         })}
                     </nav>
                 </div>
                 <div className="flex flex-col items-center space-y-4">
-                     <div className="w-8 h-px bg-gray-300 dark:bg-gray-700 my-2"></div>
-                     {userNavConfig.map(item => {
+                    <div className="w-8 h-px bg-gray-300 dark:bg-gray-700 my-2"></div>
+                    {userNavConfig.map(item => {
                         const isActive = location.pathname.startsWith(item.path);
-                        return ( <button key={item.name} onClick={() => handleMainMenuClick(item)} title={item.name} className={`p-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10'}`}>{item.icon}</button> );
-                     })}
-                     <button title="使用者名稱" className="w-10 h-10 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 font-semibold">YC</button>
+                        return (<button key={item.name} onClick={() => handleMainMenuClick(item)} title={item.name} className={`p-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10'}`}>{item.icon}</button>);
+                    })}
+                    <button title="使用者名稱" className="w-10 h-10 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 font-semibold">YC</button>
                 </div>
             </aside>
             <div className="flex-1 flex overflow-x-hidden">
@@ -229,6 +256,7 @@ const WelcomePage = () => (
         <header className="flex justify-between items-center mb-8">
             <h1 className="text-3xl font-bold">歡迎來到 Constellation 儀表板</h1>
             <div className="flex items-center space-x-2">
+                <BackgroundToggleButton />
                 <AnimationToggleButton />
                 <ThemeToggleButton />
             </div>
@@ -241,6 +269,7 @@ const GenericPage = ({ title }: { title: string }) => (
     <header className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{title}</h1>
         <div className="flex items-center space-x-2">
+            <BackgroundToggleButton />
             <AnimationToggleButton />
             <ThemeToggleButton />
         </div>
@@ -265,11 +294,13 @@ const router = createBrowserRouter([
 
 function App() {
     return (
-        <AnimationProvider>
-            <ThemeProvider>
-                <RouterProvider router={router} />
-            </ThemeProvider>
-        </AnimationProvider>
+        <BackgroundEffectProvider>
+            <AnimationProvider>
+                <ThemeProvider>
+                    <RouterProvider router={router} />
+                </ThemeProvider>
+            </AnimationProvider>
+        </BackgroundEffectProvider>
     );
 }
 
