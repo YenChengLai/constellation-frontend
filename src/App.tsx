@@ -1,6 +1,11 @@
 import React, { useState, useEffect, createContext, useContext, useMemo, useRef, RefObject } from 'react';
 import { createBrowserRouter, RouterProvider, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { LoginPage } from './pages/LoginPage';
+import { SignupPage } from './pages/SignupPage';
+import { useAuth } from './contexts/AuthContext';
+
 // --- Custom Hook ---
 function useClickOutside<T extends HTMLElement = HTMLElement>(
     handler: (event: MouseEvent | TouchEvent) => void,
@@ -23,7 +28,7 @@ function useClickOutside<T extends HTMLElement = HTMLElement>(
     return ref;
 }
 
-// Theme Context
+// --- 1. 全局狀態管理 (Context) ---
 type Theme = 'light' | 'dark';
 type ThemeContextType = { theme: Theme; toggleTheme: () => void; };
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
@@ -43,7 +48,6 @@ export const useTheme = () => {
     return context;
 };
 
-// Animation Context
 type AnimationContextType = { isAnimationEnabled: boolean; toggleAnimation: () => void; };
 const AnimationContext = createContext<AnimationContextType | undefined>(undefined);
 export const AnimationProvider = ({ children }: { children: React.ReactNode }) => {
@@ -70,7 +74,6 @@ export const useAnimation = () => {
     return context;
 };
 
-// Background Effect Context
 type BackgroundEffectContextType = { isBackgroundEnabled: boolean; toggleBackground: () => void; };
 const BackgroundEffectContext = createContext<BackgroundEffectContextType | undefined>(undefined);
 export const BackgroundEffectProvider = ({ children }: { children: React.ReactNode }) => {
@@ -90,7 +93,6 @@ export const useBackgroundEffect = () => {
 
 
 // --- 2. UI (Components) ---
-
 const StarryBackground = () => {
     const { isBackgroundEnabled } = useBackgroundEffect();
     const shadowsSmall = useMemo(() => Array.from({ length: 700 }, () => `${Math.floor(Math.random() * 2000)}px ${Math.floor(Math.random() * 2000)}px #FFF`).join(','), []);
@@ -126,7 +128,6 @@ const StarryBackground = () => {
                 #stars2 { width: 2px; height: 2px; }
                 #stars3 { width: 3px; height: 3px; }
 
-                /* Only activate the animation when it's activated */
                 .animations-enabled #stars { animation: animStar 150s linear infinite; }
                 .animations-enabled #stars2 { animation: animStar 100s linear infinite; }
                 .animations-enabled #stars3 { animation: animStar 50s linear infinite; }
@@ -134,7 +135,6 @@ const StarryBackground = () => {
         </>
     );
 };
-
 const ThemeToggleButton = () => {
     const { theme, toggleTheme } = useTheme();
     return (
@@ -143,33 +143,22 @@ const ThemeToggleButton = () => {
         </button>
     );
 };
-
 const AnimationToggleButton = () => {
     const { isAnimationEnabled, toggleAnimation } = useAnimation();
     return (
         <button onClick={toggleAnimation} className="p-2 rounded-full bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-white/20 transition-colors" aria-label="切換動畫效果">
-            {isAnimationEnabled ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l-3.09 3.09m0 0a2.5 2.5 0 103.536 3.536M15 5l3.09 3.09m-3.09-3.09a2.5 2.5 0 11-3.536 3.536M12 21a9 9 0 110-18 9 9 0 010 18z" /></svg>
-            ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
-            )}
+            {isAnimationEnabled ? (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l-3.09 3.09m0 0a2.5 2.5 0 103.536 3.536M15 5l3.09 3.09m-3.09-3.09a2.5 2.5 0 11-3.536 3.536M12 21a9 9 0 110-18 9 9 0 010 18z" /></svg>) : (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>)}
         </button>
     );
 };
-
 const BackgroundToggleButton = () => {
     const { isBackgroundEnabled, toggleBackground } = useBackgroundEffect();
     return (
         <button onClick={toggleBackground} className="p-2 rounded-full bg-gray-200 dark:bg-white/10 text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-white/20 transition-colors" aria-label="切換背景特效">
-            {isBackgroundEnabled ? (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
-            ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>
-            )}
+            {isBackgroundEnabled ? (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>) : (<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" /></svg>)}
         </button>
     );
 };
-
 type SubNavItemConfig = { name: string; path: string; children?: { name: string; path: string; }[]; }
 const CollapsibleMenuItem = ({ item }: { item: SubNavItemConfig }) => {
     const location = useLocation();
@@ -180,16 +169,14 @@ const CollapsibleMenuItem = ({ item }: { item: SubNavItemConfig }) => {
     return (
         <div>
             <button onClick={() => setIsOpen(!isOpen)} className="w-full flex justify-between items-center px-4 py-2.5 text-sm font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10 rounded-lg transition-colors">
-                <span>{item.name}</span>
-                <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                <span>{item.name}</span><svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
             </button>
             {isOpen && <div className="mt-1 pl-4 border-l border-gray-200 dark:border-gray-700 ml-2">{item.children.map(child => <NavLink key={child.name} to={child.path} className="flex items-center my-1 px-4 py-2 text-sm font-medium rounded-lg transition-colors text-gray-600 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-white/10">{child.name}</NavLink>)}</div>}
         </div>
     );
 };
 
-// --- 3. Layouts & Pages ---
-
+// --- 3. 佈局與頁面 (Layouts & Pages) ---
 type NavItemConfig = { name: string; path: string; icon: React.ReactNode; children?: SubNavItemConfig[]; };
 const navConfig: NavItemConfig[] = [
     { name: '儀表板', path: '/', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> },
@@ -201,6 +188,7 @@ const userNavConfig: NavItemConfig[] = [
 ];
 
 const MainLayout = () => {
+    const { logout } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
     const activeSubMenuConfig = useMemo(() => navConfig.find(item => item.children && location.pathname.startsWith(item.path)), [location.pathname]);
@@ -215,6 +203,10 @@ const MainLayout = () => {
         const isModuleAlreadyActive = item.path === '/' ? location.pathname === '/' : location.pathname.startsWith(item.path);
         const canToggle = !!item.children;
         if (isModuleAlreadyActive && canToggle) { setIsSubMenuOpen(prev => !prev); } else { navigate(item.path); }
+    };
+    const handleLogout = async () => {
+        await logout();
+        navigate('/login');
     };
     return (
         <div className="relative flex h-screen bg-transparent text-gray-900 dark:text-gray-200">
@@ -236,6 +228,11 @@ const MainLayout = () => {
                         return (<button key={item.name} onClick={() => handleMainMenuClick(item)} title={item.name} className={`p-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10'}`}>{item.icon}</button>);
                     })}
                     <button title="使用者名稱" className="w-10 h-10 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 font-semibold">YC</button>
+                    <button onClick={handleLogout} title="登出" className="p-3 rounded-xl transition-colors text-gray-500 hover:bg-red-500/20 hover:text-red-400 dark:hover:bg-red-500/10">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+                        </svg>
+                    </button>
                 </div>
             </aside>
             <div className="flex-1 flex overflow-x-hidden">
@@ -264,7 +261,6 @@ const WelcomePage = () => (
         <div className="bg-gray-100 dark:bg-white/5 backdrop-blur-sm p-6 rounded-xl border border-gray-200 dark:border-white/10"><h3 className="text-lg font-semibold text-gray-800 dark:text-gray-100">探索你的宇宙</h3><p className="text-gray-600 dark:text-gray-300 mt-2">這裡是您所有生活模組的資訊中心，點擊左側圖示開始探索。</p></div>
     </>
 );
-
 const GenericPage = ({ title }: { title: string }) => (
     <header className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">{title}</h1>
@@ -279,17 +275,31 @@ const GenericPage = ({ title }: { title: string }) => (
 const router = createBrowserRouter([
     {
         path: "/",
-        element: <MainLayout />,
+        element: <ProtectedRoute />, // 所有子路由都先經過保護驗證
         children: [
-            { index: true, element: <WelcomePage /> },
-            { path: "expenses", element: <GenericPage title="記帳儀表板" /> },
-            { path: "expenses/transactions", element: <GenericPage title="交易紀錄" /> },
-            { path: "expenses/charts", element: <GenericPage title="圖表分析" /> },
-            { path: "fitness", element: <GenericPage title="訓練日誌" /> },
-            { path: "fitness/exercises", element: <GenericPage title="動作庫" /> },
-            { path: "settings", element: <GenericPage title="設定" /> },
-        ],
+            {
+                path: "/", // 如果驗證通過，渲染 MainLayout
+                element: <MainLayout />,
+                children: [ // MainLayout 內部要渲染的頁面
+                    { index: true, element: <WelcomePage /> },
+                    { path: "expenses", element: <GenericPage title="記帳儀表板" /> },
+                    { path: "expenses/transactions", element: <GenericPage title="交易紀錄" /> },
+                    { path: "expenses/charts", element: <GenericPage title="圖表分析" /> },
+                    { path: "fitness", element: <GenericPage title="訓練日誌" /> },
+                    { path: "fitness/exercises", element: <GenericPage title="動作庫" /> },
+                    { path: "settings", element: <GenericPage title="設定" /> },
+                ]
+            }
+        ]
     },
+    {
+        path: "/login",
+        element: <LoginPage />,
+    },
+    {
+        path: "/signup",
+        element: <SignupPage />,
+    }
 ]);
 
 function App() {
