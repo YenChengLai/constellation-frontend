@@ -17,56 +17,58 @@ This is a React monorepo managed with `npm`. It is structured to be scalable and
 - **`/src/hooks`**: Contains custom React hooks (e.g., `useClickOutside`) to share logic across components.
 - **`/src/pages` or `/src/apps`**: Can hold self-contained application modules (our "Stars").
 - **`/src/contexts` (Implicit)**: Global state management (Theme, Animations) is handled via React Context API, defined within `App.tsx`.
+- **`/src/services`**: Holds modules responsible for external communication, such as the API client.
 
 ```text
 constellation-frontend/
 │
-├── .env.example              # Example environment variables file
-├── .gitignore
-├── index.html                # Main HTML entry point
-├── package.json              # Project dependencies and scripts
+├── .env.local                # Local environment variables
+├── index.html
+├── package.json
 ├── README.md                 # This file
-├── tsconfig.json             # TypeScript configuration
-├── vite.config.ts            # Vite configuration
 │
 └── src/
-    ├── App.tsx               # Main application component, layout, and routing setup
+    ├── App.tsx               # Root component with providers & router setup
     ├── main.tsx              # Application entry point
     │
-    ├── components/           # (Future) Shared, reusable components
-    └── hooks/
-        └── useClickOutside.ts  # Custom hook for detecting clicks outside an element
+    ├── components/
+    │   └── ProtectedRoute.tsx  # Route guard for authenticated users
+    ├── contexts/
+    │   └── AuthContext.tsx     # Global state management for authentication
+    ├── hooks/
+    │   └── useClickOutside.ts
+    ├── pages/
+    │   ├── LoginPage.tsx
+    │   ├── SignupPage.tsx
+    │   └── ErrorPage.tsx
+    └── services/
+        └── api.ts              # Centralized Axios client for API communication
 ```
 
 ```mermaid
 graph TD
-    subgraph Constellation_Frontend["Constellation Frontend"]
-        direction TB
+    subgraph "Constellation Frontend"
+        APP["main.tsx"] -->|renders| AUTH_PROVIDER["fa:fa-shield-alt AuthProvider"]
+        
+        AUTH_PROVIDER --> ROUTER[("RouterProvider")]
 
-        APP["main.tsx"] -->|renders| ROUTER["RouterProvider"]
+        subgraph "Routing Logic"
+            ROUTER -->|path: /| PROTECTED{"fa:fa-lock ProtectedRoute"}
+            ROUTER -->|path: /login| LOGIN_PAGE["fa:fa-right-to-bracket LoginPage"]
+        end
 
-        subgraph Global_Providers["Global Context Providers"]
-            style Global_Providers fill:#e6ffed,stroke:#00642e
-            BG_PROVIDER["fa:fa-image BackgroundEffectProvider"]
-            ANIM_PROVIDER["fa:fa-magic AnimationProvider"]
-            THEME_PROVIDER["fa:fa-palette ThemeProvider"]
+        subgraph PROTECTED_AREA ["Protected Area"]
+            LAYOUT["fa:fa-columns MainLayout"]
+            OUTLET["fa:fa-window-maximize <Outlet/>"]
+            EXPENSE_APP["fa:fa-money-bill-wave ExpenseApp"]
         end
         
-        ROUTER --> BG_PROVIDER --> ANIM_PROVIDER --> THEME_PROVIDER
+        style PROTECTED_AREA fill:#e6f3ff,stroke:#005cb3
 
-        subgraph Core_Layout["Core Layout & Pages"]
-            style Core_Layout fill:#e6f3ff,stroke:#005cb3
-            LAYOUT["fa:fa-columns MainLayout.tsx"]
-            OUTLET["fa:fa-window-maximize Outlet"]
-            PAGE_EXPENSE["fa:fa-money-bill-wave Expense App"]
-            PAGE_FITNESS["fa:fa-bolt Fitness App"]
-        end
-
-        THEME_PROVIDER -->|provides context to| LAYOUT
-        LAYOUT -->|renders| OUTLET
-        ROUTER -->|controls| OUTLET
-        OUTLET -->|displays| PAGE_EXPENSE
-        OUTLET -->|displays| PAGE_FITNESS
+        PROTECTED -- "is authenticated" --> LAYOUT
+        
+        %% This is the corrected line:
+        PROTECTED -->|"is NOT authenticated (redirect)"| LOGIN_PAGE
     end
 ```
 
@@ -77,7 +79,9 @@ graph TD
 - **Build Tool**: [Vite](https://vite.dev/)
 - **Styling**: [Tailwind CSS v3](https://tailwindcss.com/)
 - **Routing**: [Routing](https://reactrouter.com/)
-- **Global State**: **React Context API**
+- **Data Fetching**: [axios](https://axios-http.com/)
+- **JWT Handling**: [jwt-decode](https://github.com/auth0/jwt-decode)
+- **Global State**: React Context API
 
 ## Local Development Setup
 
@@ -115,7 +119,7 @@ Then, edit the `.env.local` file with the base URL for the backend API services.
 
 |Variable|Description|Example|
 |---|---|---|
-|`VITE_API_BASE_URL`|The base URL for the backend API gateway or individual services.| `<http://localhost:8000>`|
+|`VITE_API_BASE_URL`|The base URL for the backend API gateway or individual services.| `<http://localhost:8001>`|
 
 ### Running the Application
 
@@ -132,7 +136,20 @@ npm run dev
 - `npm run lint`: Lints the codebase using ESLint.
 - `npm run preview`: Serves the production build locally for testing.
 
-## Key Features & UI Controls
+## 🔐 Authentication Flow
+
+Authentication is managed globally via `AuthContext`, which handles token storage, user state, and API calls.
+
+- **Protected Routes**: The main application (`MainLayout`) is wrapped in a `ProtectedRoute` component. Unauthenticated users attempting to access any page under `/` will be automatically redirected to `/login`.
+- **User Journey**:
+    1. New users register on the `/signup` page. The backend creates their account with `verified: false`.
+    2. Upon success, they are redirected to a `/pending-verification` page, informing them that their account requires administrator approval.
+    3. An administrator manually updates the user's `verified` status to `true` in the database.
+    4. Verified users can now log in via the `/login` page.
+    5. A successful login stores a JWT `access_token` and `refresh_token` in `localStorage` and grants access to the main application.
+    6. The central `axios` client automatically attaches the `access_token` as a Bearer token to all subsequent API requests.
+
+## 🎨 Key Features & UI Controls
 
 The UI provides several customization options, located in the top-right corner of the content area header.
 
