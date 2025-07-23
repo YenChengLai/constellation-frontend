@@ -1,4 +1,3 @@
-// src/pages/SignupPage.tsx
 import React, { useState, FormEvent } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signup } from '../services/api';
@@ -14,6 +13,7 @@ export const SignupPage = () => {
     const [confirmPassword, setConfirmPassword] = useState('');
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [isPasswordFocused, setIsPasswordFocused] = useState(false);
 
     const handleSubmit = async (event: FormEvent) => {
         event.preventDefault();
@@ -27,8 +27,7 @@ export const SignupPage = () => {
         setIsLoading(true);
         try {
             await signup({ email, password });
-            // 註冊成功後，導向登入頁並提示使用者
-            navigate('/login', { state: { message: 'Registration successful! Please sign in.' } });
+            navigate('/pending-verification');
         } catch (err: any) {
             if (err.response && err.response.data && err.response.data.detail) {
                 setError(err.response.data.detail);
@@ -56,7 +55,21 @@ export const SignupPage = () => {
                     </div>
                     <div>
                         <label htmlFor="password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Password</label>
-                        <input id="password" type="password" required value={password} onChange={(e) => setPassword(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+                        <input
+                            id="password"
+                            type="password"
+                            required
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            onFocus={() => setIsPasswordFocused(true)}
+                            onBlur={() => setIsPasswordFocused(false)}
+                            className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-800/50 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500" />
+
+                        {isPasswordFocused && (
+                            <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 p-2 bg-gray-100 dark:bg-gray-800/50 rounded-md">
+                                Must be at least 8 characters long.
+                            </div>
+                        )}
                     </div>
                     <div>
                         <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 dark:text-gray-300">Confirm Password</label>

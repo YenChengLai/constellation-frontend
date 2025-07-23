@@ -1,10 +1,11 @@
 import React, { useState, useEffect, createContext, useContext, useMemo, useRef, RefObject } from 'react';
-import { createBrowserRouter, RouterProvider, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { LoginPage } from './pages/LoginPage';
-import { SignupPage } from './pages/SignupPage';
+import { createBrowserRouter, RouterProvider, NavLink, Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { LoginPage } from './pages/LoginPage';
+import { ProtectedRoute } from './components/ProtectedRoute';
+import { SignupPage } from './pages/SignupPage';
+import { ErrorPage } from './pages/ErrorPage';
+import { PendingVerificationPage } from './pages/PendingVerificationPage';
 
 // --- Custom Hook ---
 function useClickOutside<T extends HTMLElement = HTMLElement>(
@@ -275,12 +276,13 @@ const GenericPage = ({ title }: { title: string }) => (
 const router = createBrowserRouter([
     {
         path: "/",
-        element: <ProtectedRoute />, // 所有子路由都先經過保護驗證
+        element: <ProtectedRoute />,
+        errorElement: <ErrorPage />,
         children: [
             {
-                path: "/", // 如果驗證通過，渲染 MainLayout
+                path: "/",
                 element: <MainLayout />,
-                children: [ // MainLayout 內部要渲染的頁面
+                children: [
                     { index: true, element: <WelcomePage /> },
                     { path: "expenses", element: <GenericPage title="記帳儀表板" /> },
                     { path: "expenses/transactions", element: <GenericPage title="交易紀錄" /> },
@@ -299,6 +301,10 @@ const router = createBrowserRouter([
     {
         path: "/signup",
         element: <SignupPage />,
+    },
+    {
+        path: "/pending-verification",
+        element: <PendingVerificationPage />,
     }
 ]);
 
