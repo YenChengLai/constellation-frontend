@@ -1,7 +1,9 @@
 import React, { useState, useEffect, createContext, useContext, useMemo, useRef, RefObject } from 'react';
 import { createBrowserRouter, RouterProvider, NavLink, Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
+import { ExpenseProvider } from './contexts/ExpenseContext';
 import { LoginPage } from './pages/LoginPage';
+import { TransactionPage } from './pages/TransactionPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { SignupPage } from './pages/SignupPage';
 import { ErrorPage } from './pages/ErrorPage';
@@ -281,11 +283,15 @@ const router = createBrowserRouter([
         children: [
             {
                 path: "/",
-                element: <MainLayout />,
+                element: (
+                    <ExpenseProvider>
+                        <MainLayout />
+                    </ExpenseProvider>
+                ),
                 children: [
                     { index: true, element: <WelcomePage /> },
                     { path: "expenses", element: <GenericPage title="記帳儀表板" /> },
-                    { path: "expenses/transactions", element: <GenericPage title="交易紀錄" /> },
+                    { path: "expenses/transactions", element: <TransactionPage /> },
                     { path: "expenses/charts", element: <GenericPage title="圖表分析" /> },
                     { path: "fitness", element: <GenericPage title="訓練日誌" /> },
                     { path: "fitness/exercises", element: <GenericPage title="動作庫" /> },

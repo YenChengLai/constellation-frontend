@@ -34,7 +34,8 @@ constellation-frontend/
     ├── components/
     │   └── ProtectedRoute.tsx  # Route guard for authenticated users
     ├── contexts/
-    │   └── AuthContext.tsx     # Global state management for authentication
+    │   ├── AuthContext.tsx     # Global state management for authentication
+    │   └── ExpenseContext.tsx
     ├── hooks/
     │   └── useClickOutside.ts
     ├── pages/
@@ -42,7 +43,8 @@ constellation-frontend/
     │   ├── SignupPage.tsx
     │   └── ErrorPage.tsx
     └── services/
-        └── api.ts              # Centralized Axios client for API communication
+        ├── api.ts              # Centralized Axios client for API communication
+        └── api.types.ts
 ```
 
 ```mermaid
@@ -57,18 +59,18 @@ graph TD
             ROUTER -->|path: /login| LOGIN_PAGE["fa:fa-right-to-bracket LoginPage"]
         end
 
-        subgraph PROTECTED_AREA ["Protected Area"]
+        subgraph "Protected Area"
             LAYOUT["fa:fa-columns MainLayout"]
+            EXPENSE_PROVIDER["fa:fa-database ExpenseProvider"]
             OUTLET["fa:fa-window-maximize <Outlet/>"]
-            EXPENSE_APP["fa:fa-money-bill-wave ExpenseApp"]
+            TRANSACTION_PAGE["fa:fa-money-bill-wave TransactionPage"]
         end
-        
-        style PROTECTED_AREA fill:#e6f3ff,stroke:#005cb3
 
-        PROTECTED -- "is authenticated" --> LAYOUT
-        
-        %% This is the corrected line:
-        PROTECTED -->|"is NOT authenticated (redirect)"| LOGIN_PAGE
+        PROTECTED -- is authenticated --> LAYOUT
+        PROTECTED -- "is NOT authenticated (redirect)" --> LOGIN_PAGE
+        LAYOUT --> EXPENSE_PROVIDER
+        EXPENSE_PROVIDER --> OUTLET
+        OUTLET --> TRANSACTION_PAGE
     end
 ```
 
@@ -119,7 +121,8 @@ Then, edit the `.env.local` file with the base URL for the backend API services.
 
 |Variable|Description|Example|
 |---|---|---|
-|`VITE_API_BASE_URL`|The base URL for the backend API gateway or individual services.| `<http://localhost:8001>`|
+|`VITE_AUTH_API_URL`|The base URL for the `auth_service`.| `<http://localhost:8001>`|
+|`VITE_EXPENSE_API_URL`|The base URL for the `expense_service` .| `<http://localhost:8002>`|
 
 ### Running the Application
 

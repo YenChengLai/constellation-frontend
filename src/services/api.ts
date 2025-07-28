@@ -1,102 +1,159 @@
-// src/services/api.ts
-
 import axios from "axios";
+import type {
+  LoginCredentials,
+  AuthResponse,
+  SignupCredentials,
+  SignupResponse,
+  Category,
+  CategoryCreatePayload,
+  Transaction,
+  TransactionCreatePayload,
+  UpdateTransactionPayload,
+} from "./api.types";
 
-// 1. 建立一個 Axios instance
-const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_BASE_URL,
-  headers: {
-    "Content-Type": "application/json",
-  },
-});
+// ✨ 1. 建立一個工廠函式來產生 API Client
+// 這樣我們就不需要重複撰寫攔截器的邏輯
+const createApiClient = (baseURL: string) => {
+  const client = axios.create({
+    baseURL,
+    headers: {
+      "Content-Type": "application/json",
+    },
+  });
 
-// 2. 設定請求攔截器 (Request Interceptor)
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem("accessToken");
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+  // 每個 client 共用相同的請求攔截器
+  client.interceptors.request.use(
+    (config) => {
+      const token = localStorage.getItem("accessToken");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+      return config;
+    },
+    (error) => Promise.reject(error)
+  );
+
+  client.interceptors.response.use(
+    // 對於成功的請求 (狀態碼 2xx)，直接回傳回應
+    (response) => response,
+    // 對於失敗的請求，進行判斷
+    (error) => {
+      // 檢查錯誤是否由後端 API 回應，且狀態碼為 401 Unauthorized
+      if (error.response && error.response.status === 401) {
+        // 清除本地儲存的 tokens
+        localStorage.removeItem("accessToken");
+        localStorage.removeItem("refreshToken");
+        // 將使用者導向到登入頁面，並重新整理頁面以確保所有狀態被重設
+        window.location.href = "/login";
+      }
+      // 對於其他錯誤，正常地將其拋出
+      return Promise.reject(error);
     }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
+  );
 
-// 3. 定義 API 函式
+  return client;
+};
 
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
+// ✨ 2. 為每個微服務建立獨立的 client 實體
+const authApiClient = createApiClient(import.meta.env.VITE_AUTH_API_URL);
+const expenseApiClient = createApiClient(import.meta.env.VITE_EXPENSE_API_URL);
 
-export interface AuthResponse {
-  access_token: string;
-  refresh_token: string;
-  token_type: string;
-}
-
-export interface SignupCredentials {
-  email: string;
-  password: string;
-}
-
-export interface SignupResponse {
-  user_id: string;
-  email: string;
-}
-
-/**
- * 使用者登入
- * @param credentials - 包含 email 和 password 的物件
- * @returns Promise，包含 access_token 和 refresh_token
- */
+// --- Auth API ---
 export const login = async (
   credentials: LoginCredentials
 ): Promise<AuthResponse> => {
-  try {
-    const response = await apiClient.post<AuthResponse>("/login", credentials);
-    return response.data;
-  } catch (error) {
-    console.error("Login failed:", error);
-    throw error;
-  }
+  const response = await authApiClient.post<AuthResponse>(
+    "/login",
+    credentials
+  );
+  return response.data;
 };
 
-/**
- * 使用者註冊
- * @param credentials - 包含 email 和 password 的物件
- * @returns Promise，包含新建立的使用者資訊
- */
+export const logout = async (refreshToken: string): Promise<void> => {
+  await authApiClient.post("/logout", { refresh_token: refreshToken });
+};
+
 export const signup = async (
   credentials: SignupCredentials
 ): Promise<SignupResponse> => {
+  const response = await authApiClient.post<SignupResponse>(
+    "/signup",
+    credentials
+  );
+  return response.data;
+};
+
+// --- Category API ---
+export const getCategories = async (
+  type?: "expense" | "income"
+): Promise<Category[]> => {
+  const response = await expenseApiClient.get("/categories", {
+    params: { category_type: type },
+  });
+  return response.data;
+};
+
+export const createCategory = async (
+  categoryData: CategoryCreatePayload
+): Promise<Category> => {
+  const response = await expenseApiClient.post("/categories", categoryData);
+  return response.data;
+};
+
+// --- Transaction API ---
+export const createTransaction = async (
+  transactionData: TransactionCreatePayload
+): Promise<Transaction> => {
+  const response = await expenseApiClient.post(
+    "/transactions",
+    transactionData
+  );
+  return response.data;
+};
+
+/**
+ * 獲取目前使用者的所有交易紀錄
+ */
+export const getTransactions = async (): Promise<Transaction[]> => {
   try {
-    const response = await apiClient.post<SignupResponse>(
-      "/signup",
-      credentials
-    );
+    const response = await expenseApiClient.get("/transactions");
     return response.data;
   } catch (error) {
-    console.error("Signup failed:", error);
+    console.error("Failed to fetch transactions:", error);
     throw error;
   }
 };
 
 /**
- * 使用者登出
- * @param refreshToken - 要使其失效的 refresh token
+ * 更新一筆指定的交易
+ * @param id - 交易的 ID
+ * @param payload - 要更新的資料
  */
-export const logout = async (refreshToken: string): Promise<void> => {
+export const updateTransaction = async (
+  id: string,
+  payload: UpdateTransactionPayload
+): Promise<Transaction> => {
   try {
-    await apiClient.post("/logout", { refresh_token: refreshToken });
+    const response = await expenseApiClient.patch(
+      `/transactions/${id}`,
+      payload
+    );
+    return response.data;
   } catch (error) {
-    // It's okay if this fails (e.g., token already expired).
-    // The main goal is to clear the client-side state.
-    console.error("Logout API call failed:", error);
+    console.error(`Failed to update transaction ${id}:`, error);
+    throw error;
   }
 };
 
-// 4. (可選) 匯出 apiClient instance
-export default apiClient;
+/**
+ * 刪除一筆指定的交易
+ * @param id - 交易的 ID
+ */
+export const deleteTransaction = async (id: string): Promise<void> => {
+  try {
+    await expenseApiClient.delete(`/transactions/${id}`);
+  } catch (error) {
+    console.error(`Failed to delete transaction ${id}:`, error);
+    throw error;
+  }
+};
