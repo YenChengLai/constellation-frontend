@@ -17,7 +17,7 @@ interface ExpenseContextType {
     isLoading: boolean;
     error: string | null;
     fetchCategories: () => Promise<void>;
-    fetchTransactions: () => Promise<void>;
+    fetchTransactions: (year: number, month: number) => Promise<void>;
     addTransaction: (data: TransactionCreatePayload) => Promise<void>;
     removeTransaction: (id: string) => Promise<void>;
 }
@@ -47,11 +47,11 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         }
     }, []);
 
-    const fetchTransactions = useCallback(async () => {
+    const fetchTransactions = useCallback(async (year: number, month: number) => {
         setIsLoading(true);
         setError(null);
         try {
-            const fetchedTransactions = await apiGetTransactions();
+            const fetchedTransactions = await apiGetTransactions(year, month);
             setTransactions(fetchedTransactions);
         } catch (err) {
             setError("Failed to load transactions.");

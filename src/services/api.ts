@@ -114,9 +114,14 @@ export const createTransaction = async (
 /**
  * 獲取目前使用者的所有交易紀錄
  */
-export const getTransactions = async (): Promise<Transaction[]> => {
+export const getTransactions = async (
+  year: number,
+  month: number
+): Promise<Transaction[]> => {
   try {
-    const response = await expenseApiClient.get("/transactions");
+    const response = await expenseApiClient.get("/transactions", {
+      params: { year, month },
+    });
     return response.data;
   } catch (error) {
     console.error("Failed to fetch transactions:", error);

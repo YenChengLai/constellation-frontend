@@ -1,4 +1,4 @@
-import React, { useState, useEffect, FormEvent, ChangeEvent } from 'react';
+import React, { useState, useEffect, FormEvent } from 'react';
 import { useExpenses } from '../contexts/ExpenseContext';
 import type { Category, Transaction, TransactionCreatePayload, UpdateTransactionPayload } from '../services/api.types';
 import { useAuth } from '../contexts/AuthContext';
@@ -23,55 +23,36 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
     const [localError, setLocalError] = useState<string | null>(null);
 
     const resetForm = () => {
-        setType('expense');
-        setAmount('');
-        setCategoryId('');
+        setType('expense'); setAmount(''); setCategoryId('');
         setTransactionDate(new Date().toISOString().slice(0, 10));
-        setDescription('');
-        setLocalError(null);
+        setDescription(''); setLocalError(null);
     };
 
-    const handleClose = () => {
-        onClose();
-    };
+    const handleClose = () => { resetForm(); onClose(); };
 
-    // 當 transactionToEdit 變化時 (例如點擊編輯按鈕)，用它的資料填充表單
     useEffect(() => {
-        // 只在 Modal 打開時作用
         if (isOpen) {
             if (isEditMode && transactionToEdit) {
-                // 如果是編輯模式，用傳入的資料填充表單
                 setType(transactionToEdit.type);
                 setAmount(String(transactionToEdit.amount));
-                setCategoryId(transactionToEdit.category._id); // 使用 _id
+                setCategoryId(transactionToEdit.category.id);
                 setTransactionDate(new Date(transactionToEdit.transaction_date).toISOString().slice(0, 10));
                 setDescription(transactionToEdit.description || '');
             } else {
-                // 如果是新增模式，重設表單
                 resetForm();
             }
         }
     }, [isOpen, isEditMode, transactionToEdit]);
 
-    // 當交易類型改變時，清空已選擇的分類
     useEffect(() => {
-        if (!isEditMode) { // 只在新增模式下自動清空
-            setCategoryId('');
-        }
+        if (!isEditMode) { setCategoryId(''); }
     }, [type, isEditMode]);
 
     const handleSubmit = async (e: FormEvent) => {
         e.preventDefault();
         setLocalError(null);
-
-        if (!categoryId) {
-            setLocalError('請選擇一個分類');
-            return;
-        }
-        if (parseFloat(amount) <= 0 || isNaN(parseFloat(amount))) {
-            setLocalError('金額必須是正數');
-            return;
-        }
+        if (!categoryId) { setLocalError('請選擇一個分類'); return; }
+        if (parseFloat(amount) <= 0 || isNaN(parseFloat(amount))) { setLocalError('金額必須是正數'); return; }
 
         const payload = {
             amount: parseFloat(amount),
@@ -90,12 +71,10 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
             handleClose();
         } catch (error) {
             setLocalError('儲存失敗，請再試一次');
-            console.error("Failed to save transaction from modal", error);
         }
     };
 
     if (!isOpen) return null;
-
     const filteredCategories = categories.filter(c => c.type === type);
 
     return (
@@ -114,7 +93,7 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
                     <div>
                         <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">分類</label>
                         <select id="category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-md">
-                            <option value="" disabled selected>請選擇一個分類</option>
+                            <option value="" disabled>請選擇一個分類</option>
                             {filteredCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
                         </select>
                     </div>
@@ -139,19 +118,37 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
     );
 };
 
+
 // --- 主要的交易頁面 ---
 export const TransactionPage = () => {
     const { transactions, fetchCategories, fetchTransactions, isLoading, removeTransaction } = useExpenses();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
+    const [viewDate, setViewDate] = useState(new Date());
 
+    // ✨ 核心修正：這個 useEffect 現在會監聽 viewDate 的變化
     useEffect(() => {
-        const loadData = () => {
+        const year = viewDate.getFullYear();
+        const month = viewDate.getMonth() + 1; // getMonth() returns 0-11
+        if (fetchTransactions) {
+            fetchTransactions(year, month);
+        }
+    }, [viewDate, fetchTransactions]);
+
+    // 這個 useEffect 只在首次載入時獲取分類，避免重複獲取
+    useEffect(() => {
+        if (fetchCategories) {
             fetchCategories();
-            fetchTransactions();
-        };
-        loadData();
-    }, [fetchCategories, fetchTransactions]);
+        }
+    }, [fetchCategories]);
+
+    const handlePrevMonth = () => {
+        setViewDate(current => new Date(current.getFullYear(), current.getMonth() - 1, 15));
+    };
+
+    const handleNextMonth = () => {
+        setViewDate(current => new Date(current.getFullYear(), current.getMonth() + 1, 15));
+    };
 
     const handleOpenEditModal = (tx: Transaction) => {
         setTransactionToEdit(tx);
@@ -172,7 +169,16 @@ export const TransactionPage = () => {
     return (
         <div className="container mx-auto">
             <header className="flex justify-between items-center mb-8">
-                <h1 className="text-3xl font-bold text-gray-900 dark:text-white">交易紀錄</h1>
+                <div className="flex items-center gap-4">
+                    <h1 className="text-3xl font-bold text-gray-900 dark:text-white">交易紀錄</h1>
+                    <div className="flex items-center gap-2 p-1 rounded-lg bg-gray-100 dark:bg-gray-800/50">
+                        <button onClick={handlePrevMonth} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">◀</button>
+                        <span className="font-semibold w-32 text-center text-gray-700 dark:text-gray-300">
+                            {viewDate.getFullYear()}年 {viewDate.getMonth() + 1}月
+                        </span>
+                        <button onClick={handleNextMonth} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">▶</button>
+                    </div>
+                </div>
                 <button
                     onClick={handleOpenAddModal}
                     className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-lg shadow-indigo-500/20 transition-transform hover:scale-105"
@@ -188,7 +194,7 @@ export const TransactionPage = () => {
             />
 
             <div className="space-y-3">
-                {isLoading && transactions.length === 0 ? (
+                {isLoading ? (
                     <p className="text-center text-gray-500 dark:text-gray-400">載入交易紀錄中...</p>
                 ) : transactions.length > 0 ? (
                     transactions.map(tx => (
