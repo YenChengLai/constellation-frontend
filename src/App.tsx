@@ -2,6 +2,7 @@ import React, { useState, useEffect, createContext, useContext, useMemo, useRef,
 import { createBrowserRouter, RouterProvider, NavLink, Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useAuth } from './contexts/AuthContext';
 import { ExpenseProvider } from './contexts/ExpenseContext';
+import { ExpenseDashboardPage } from './pages/ExpenseDashboardPage';
 import { LoginPage } from './pages/LoginPage';
 import { TransactionPage } from './pages/TransactionPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
@@ -290,7 +291,7 @@ const router = createBrowserRouter([
                 ),
                 children: [
                     { index: true, element: <WelcomePage /> },
-                    { path: "expenses", element: <GenericPage title="記帳儀表板" /> },
+                    { path: "expenses", element: <ExpenseDashboardPage /> },
                     { path: "expenses/transactions", element: <TransactionPage /> },
                     { path: "expenses/charts", element: <GenericPage title="圖表分析" /> },
                     { path: "fitness", element: <GenericPage title="訓練日誌" /> },

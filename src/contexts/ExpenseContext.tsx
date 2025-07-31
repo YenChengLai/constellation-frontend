@@ -10,10 +10,17 @@ import {
 } from '../services/api';
 import type { Category, Transaction, TransactionCreatePayload, UpdateTransactionPayload } from '../services/api.types';
 
+interface ExpenseSummary {
+    income: number;
+    expense: number;
+    balance: number;
+}
+
 // 定義 ExpenseContext 要提供的值的型別
 interface ExpenseContextType {
     categories: Category[];
     transactions: Transaction[];
+    summary: ExpenseSummary;
     isLoading: boolean;
     error: string | null;
     fetchCategories: () => Promise<void>;
@@ -111,9 +118,26 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
+    const summary = useMemo<ExpenseSummary>(() => {
+        const result = transactions.reduce((acc, tx) => {
+            if (tx.type === 'income') {
+                acc.income += tx.amount;
+            } else {
+                acc.expense += tx.amount;
+            }
+            return acc;
+        }, { income: 0, expense: 0 });
+
+        return {
+            ...result,
+            balance: result.income - result.expense
+        };
+    }, [transactions]);
+
     const value = useMemo(() => ({
         categories,
         transactions,
+        summary,
         isLoading,
         error,
         fetchCategories,
@@ -121,7 +145,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         addTransaction,
         editTransaction,
         removeTransaction
-    }), [categories, transactions, isLoading, error, fetchCategories, fetchTransactions]);
+    }), [categories, transactions, summary, isLoading, error, fetchCategories, fetchTransactions]);
 
     return (
         <ExpenseContext.Provider value={value}>

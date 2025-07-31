@@ -1,4 +1,4 @@
-import React, { useState, useEffect, FormEvent } from 'react';
+import React, { useState, useEffect, FormEvent, useMemo } from 'react';
 import { useExpenses } from '../contexts/ExpenseContext';
 import type { Category, Transaction, TransactionCreatePayload, UpdateTransactionPayload } from '../services/api.types';
 import { useAuth } from '../contexts/AuthContext';
@@ -119,6 +119,33 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
 };
 
 
+const TransactionSummary = ({ income, expense }: { income: number, expense: number }) => {
+    const balance = income - expense;
+    return (
+        <div className="sticky bottom-0 z-10 mt-auto pt-4">
+            <div className="p-4 bg-white/80 dark:bg-gray-900/80 backdrop-blur-lg rounded-xl shadow-lg border border-gray-200 dark:border-gray-700">
+                <div className="grid grid-cols-3 gap-4 text-center">
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">總收入</p>
+                        <p className="text-lg font-bold text-green-500">+${income.toFixed(2)}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">總支出</p>
+                        <p className="text-lg font-bold text-red-500">-${expense.toFixed(2)}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">結餘</p>
+                        <p className={`text-lg font-bold ${balance >= 0 ? 'text-gray-800 dark:text-white' : 'text-red-500'}`}>
+                            ${balance.toFixed(2)}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+};
+
+
 // --- 主要的交易頁面 ---
 export const TransactionPage = () => {
     const { transactions, fetchCategories, fetchTransactions, isLoading, removeTransaction } = useExpenses();
@@ -142,6 +169,17 @@ export const TransactionPage = () => {
         }
     }, [fetchCategories]);
 
+    const summary = useMemo(() => {
+        return transactions.reduce((acc, tx) => {
+            if (tx.type === 'income') {
+                acc.income += tx.amount;
+            } else {
+                acc.expense += tx.amount;
+            }
+            return acc;
+        }, { income: 0, expense: 0 });
+    }, [transactions]);
+
     const handlePrevMonth = () => {
         setViewDate(current => new Date(current.getFullYear(), current.getMonth() - 1, 15));
     };
@@ -149,6 +187,13 @@ export const TransactionPage = () => {
     const handleNextMonth = () => {
         setViewDate(current => new Date(current.getFullYear(), current.getMonth() + 1, 15));
     };
+
+    const isNextMonthDisabled = useMemo(() => {
+        const today = new Date();
+        const startOfCurrentMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+        const startOfViewMonth = new Date(viewDate.getFullYear(), viewDate.getMonth(), 1);
+        return startOfViewMonth >= startOfCurrentMonth;
+    }, [viewDate]);
 
     const handleOpenEditModal = (tx: Transaction) => {
         setTransactionToEdit(tx);
@@ -167,8 +212,8 @@ export const TransactionPage = () => {
     };
 
     return (
-        <div className="container mx-auto">
-            <header className="flex justify-between items-center mb-8">
+        <div className="container mx-auto flex flex-col h-full">
+            <header className="flex justify-between items-center mb-8 flex-shrink-0">
                 <div className="flex items-center gap-4">
                     <h1 className="text-3xl font-bold text-gray-900 dark:text-white">交易紀錄</h1>
                     <div className="flex items-center gap-2 p-1 rounded-lg bg-gray-100 dark:bg-gray-800/50">
@@ -176,7 +221,7 @@ export const TransactionPage = () => {
                         <span className="font-semibold w-32 text-center text-gray-700 dark:text-gray-300">
                             {viewDate.getFullYear()}年 {viewDate.getMonth() + 1}月
                         </span>
-                        <button onClick={handleNextMonth} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700">▶</button>
+                        <button onClick={handleNextMonth} disabled={isNextMonthDisabled} className="p-2 rounded-md hover:bg-gray-200 dark:hover:bg-gray-700 disabled:opacity-30 disabled:cursor-not-allowed">▶</button>
                     </div>
                 </div>
                 <button
@@ -225,6 +270,9 @@ export const TransactionPage = () => {
                     </div>
                 )}
             </div>
+            {transactions.length > 0 && (
+                <TransactionSummary income={summary.income} expense={summary.expense} />
+            )}
         </div>
     );
 };
