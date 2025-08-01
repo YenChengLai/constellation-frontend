@@ -43,6 +43,7 @@ export interface TransactionCreatePayload {
   description?: string;
   category_id: string;
   group_id?: string;
+  payer_id: string;
 }
 
 export interface Transaction {
@@ -59,6 +60,7 @@ export interface Transaction {
   };
   created_at: string;
   updated_at: string;
+  payer_id: string;
 }
 
 export interface UpdateTransactionPayload {
@@ -68,4 +70,32 @@ export interface UpdateTransactionPayload {
   description?: string;
   category_id?: string;
   group_id?: string;
+  payer_id: string;
+}
+
+export interface TransactionSummaryData {
+  income: number;
+  expense: number;
+}
+
+export interface TransactionSummaryResponse {
+  current_month: TransactionSummaryData;
+  previous_month: TransactionSummaryData;
+}
+
+// --- Group Types ---
+
+// 代表群組中的一個成員 (從後端 UserInGroup 模型映射)
+export interface GroupMember {
+  id: string;
+  email: string;
+}
+
+// 代表一個完整的群組物件 (從後端 GroupPublic 模型映射)
+export interface Group {
+  id: string;
+  name: string;
+  owner_id: string;
+  members: GroupMember[];
+  created_at: string;
 }

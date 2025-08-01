@@ -3,12 +3,16 @@ import { createBrowserRouter, RouterProvider, NavLink, Outlet, useLocation, useN
 import { useAuth } from './contexts/AuthContext';
 import { ExpenseProvider } from './contexts/ExpenseContext';
 import { ExpenseDashboardPage } from './pages/ExpenseDashboardPage';
+import { ExpenseCalendarPage } from './pages/ExpenseCalendarPage';
 import { LoginPage } from './pages/LoginPage';
 import { TransactionPage } from './pages/TransactionPage';
 import { ProtectedRoute } from './components/ProtectedRoute';
 import { SignupPage } from './pages/SignupPage';
 import { ErrorPage } from './pages/ErrorPage';
 import { PendingVerificationPage } from './pages/PendingVerificationPage';
+import { GroupProvider } from './contexts/GroupContext';
+import { ViewProvider } from './contexts/ViewContext';
+import { ViewSwitcher } from './components/ViewSwitcher';
 
 // --- Custom Hook ---
 function useClickOutside<T extends HTMLElement = HTMLElement>(
@@ -184,7 +188,7 @@ const CollapsibleMenuItem = ({ item }: { item: SubNavItemConfig }) => {
 type NavItemConfig = { name: string; path: string; icon: React.ReactNode; children?: SubNavItemConfig[]; };
 const navConfig: NavItemConfig[] = [
     { name: '儀表板', path: '/', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> },
-    { name: '記帳系統', path: '/expenses', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>, children: [{ name: '儀表板', path: '/expenses' }, { name: '交易紀錄', path: '/expenses/transactions' }, { name: '圖表分析', path: '/expenses/charts' },] },
+    { name: '記帳系統', path: '/expenses', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>, children: [{ name: '儀表板', path: '/expenses' }, { name: '交易紀錄', path: '/expenses/transactions' }, { name: '圖表分析', path: '/expenses/charts' }, { name: '日曆檢視', path: '/expenses/calendar' }] },
     { name: '健身紀錄', path: '/fitness', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>, children: [{ name: '訓練日誌', path: '/fitness' }, { name: '動作庫', path: '/fitness/exercises' },] },
 ];
 const userNavConfig: NavItemConfig[] = [
@@ -242,6 +246,7 @@ const MainLayout = () => {
             <div className="flex-1 flex overflow-x-hidden">
                 {activeSubMenuConfig && (
                     <aside ref={subMenuRef} className={`w-64 flex-shrink-0 bg-gray-50/90 dark:bg-[#111111]/90 backdrop-blur-xl border-r border-gray-200 dark:border-white/10 flex flex-col transition-margin duration-300 ease-in-out ${isSubMenuOpen ? 'ml-0' : '-ml-64'}`}>
+                        {activeSubMenuConfig.path === '/expenses' && <ViewSwitcher />}
                         <div className="p-6 h-20 flex-shrink-0 flex items-center"><h2 className="text-xl font-semibold text-gray-800 dark:text-gray-100">{activeSubMenuConfig.name}</h2></div>
                         <nav className="flex-1 px-4 py-2 space-y-1 overflow-y-auto">{activeSubMenuConfig.children?.map(child => <CollapsibleMenuItem key={child.name} item={child} />)}</nav>
                     </aside>
@@ -285,15 +290,20 @@ const router = createBrowserRouter([
             {
                 path: "/",
                 element: (
-                    <ExpenseProvider>
-                        <MainLayout />
-                    </ExpenseProvider>
+                    <ViewProvider>
+                        <GroupProvider>
+                            <ExpenseProvider>
+                                <MainLayout />
+                            </ExpenseProvider>
+                        </GroupProvider>
+                    </ViewProvider>
                 ),
                 children: [
                     { index: true, element: <WelcomePage /> },
                     { path: "expenses", element: <ExpenseDashboardPage /> },
                     { path: "expenses/transactions", element: <TransactionPage /> },
                     { path: "expenses/charts", element: <GenericPage title="圖表分析" /> },
+                    { path: "expenses/calendar", element: <ExpenseCalendarPage /> },
                     { path: "fitness", element: <GenericPage title="訓練日誌" /> },
                     { path: "fitness/exercises", element: <GenericPage title="動作庫" /> },
                     { path: "settings", element: <GenericPage title="設定" /> },

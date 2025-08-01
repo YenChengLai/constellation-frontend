@@ -8,7 +8,9 @@ import type {
   CategoryCreatePayload,
   Transaction,
   TransactionCreatePayload,
+  TransactionSummaryResponse,
   UpdateTransactionPayload,
+  Group,
 } from "./api.types";
 
 // ✨ 1. 建立一個工廠函式來產生 API Client
@@ -83,6 +85,55 @@ export const signup = async (
   return response.data;
 };
 
+// ---  Group API  ---
+
+/**
+ * 獲取當前使用者所屬的所有群組
+ */
+export const getMyGroups = async (): Promise<Group[]> => {
+  const response = await authApiClient.get("/groups/me");
+  return response.data;
+};
+
+/**
+ * 建立一個新群組
+ * @param name - 群組的名稱
+ */
+export const createGroup = async (name: string): Promise<Group> => {
+  const response = await authApiClient.post("/groups", { name });
+  return response.data;
+};
+
+/**
+ * 將使用者加入到群組
+ * @param groupId - 群組 ID
+ * @param email - 要加入的使用者的 email
+ */
+export const addMemberToGroup = async (
+  groupId: string,
+  email: string
+): Promise<Group> => {
+  const response = await authApiClient.post(`/groups/${groupId}/members`, {
+    email,
+  });
+  return response.data;
+};
+
+/**
+ * 從群組中移除使用者
+ * @param groupId - 群組 ID
+ * @param memberId - 要移除的使用者的 ID
+ */
+export const removeMemberFromGroup = async (
+  groupId: string,
+  memberId: string
+): Promise<Group> => {
+  const response = await authApiClient.delete(
+    `/groups/${groupId}/members/${memberId}`
+  );
+  return response.data;
+};
+
 // --- Category API ---
 export const getCategories = async (
   type?: "expense" | "income"
@@ -116,11 +167,12 @@ export const createTransaction = async (
  */
 export const getTransactions = async (
   year: number,
-  month: number
+  month: number,
+  groupId?: string
 ): Promise<Transaction[]> => {
   try {
     const response = await expenseApiClient.get("/transactions", {
-      params: { year, month },
+      params: { year, month, group_id: groupId },
     });
     return response.data;
   } catch (error) {
@@ -146,6 +198,27 @@ export const updateTransaction = async (
     return response.data;
   } catch (error) {
     console.error(`Failed to update transaction ${id}:`, error);
+    throw error;
+  }
+};
+
+/**
+ * 獲取指定月份的交易總覽數據
+ * @param year 年份
+ * @param month 月份 (1-12)
+ */
+export const getTransactionSummary = async (
+  year: number,
+  month: number,
+  groupId?: string
+): Promise<TransactionSummaryResponse> => {
+  try {
+    const response = await expenseApiClient.get("/transactions/summary", {
+      params: { year, month, group_id: groupId },
+    });
+    return response.data;
+  } catch (error) {
+    console.error("Failed to fetch transaction summary:", error);
     throw error;
   }
 };

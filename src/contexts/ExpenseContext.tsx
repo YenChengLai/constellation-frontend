@@ -1,48 +1,53 @@
-// src/contexts/ExpenseContext.tsx
-
 import React, { createContext, useState, useContext, useMemo, ReactNode, useCallback } from 'react';
 import {
     getCategories as apiGetCategories,
     createTransaction as apiCreateTransaction,
     getTransactions as apiGetTransactions,
     updateTransaction as apiUpdateTransaction,
-    deleteTransaction as apiDeleteTransaction
+    deleteTransaction as apiDeleteTransaction,
+    getTransactionSummary as apiGetTransactionSummary
 } from '../services/api';
-import type { Category, Transaction, TransactionCreatePayload, UpdateTransactionPayload } from '../services/api.types';
+import type { Category, Transaction, TransactionCreatePayload, UpdateTransactionPayload, TransactionSummaryResponse } from '../services/api.types';
+import { useView } from './ViewContext'
 
-interface ExpenseSummary {
-    income: number;
-    expense: number;
-    balance: number;
+// ✨ 1. 為讀取狀態建立一個更詳細的型別
+interface LoadingState {
+    categories: boolean;
+    transactions: boolean;
+    summary: boolean;
+    mutating: boolean; // 用於新增、修改、刪除操作
 }
 
-// 定義 ExpenseContext 要提供的值的型別
 interface ExpenseContextType {
     categories: Category[];
     transactions: Transaction[];
-    summary: ExpenseSummary;
-    isLoading: boolean;
+    summaryData: TransactionSummaryResponse | null;
+    loading: LoadingState; // ✨ 2. 將 isLoading: boolean 換成 loading: LoadingState
     error: string | null;
     fetchCategories: () => Promise<void>;
     fetchTransactions: (year: number, month: number) => Promise<void>;
+    fetchSummary: (year: number, month: number) => Promise<void>;
     addTransaction: (data: TransactionCreatePayload) => Promise<void>;
+    editTransaction: (id: string, data: UpdateTransactionPayload) => Promise<void>;
     removeTransaction: (id: string) => Promise<void>;
 }
 
-// 建立 Context
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
 
-// 建立 Provider 元件
 export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
+    const { view } = useView()
     const [categories, setCategories] = useState<Category[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [isLoading, setIsLoading] = useState<boolean>(false);
+    const [summaryData, setSummaryData] = useState<TransactionSummaryResponse | null>(null);
+    // ✨ 3. 初始化更詳細的讀取狀態
+    const [loading, setLoading] = useState<LoadingState>({
+        categories: true, transactions: true, summary: true, mutating: false,
+    });
     const [error, setError] = useState<string | null>(null);
 
-    // 獲取分類的函式
+    // ✨ 4. 每個函式現在只管理自己的讀取狀態
     const fetchCategories = useCallback(async () => {
-        setIsLoading(true);
-        setError(null);
+        setLoading(prev => ({ ...prev, categories: true }));
         try {
             const fetchedCategories = await apiGetCategories();
             setCategories(fetchedCategories);
@@ -50,102 +55,93 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
             setError("Failed to load categories.");
             console.error(err);
         } finally {
-            setIsLoading(false);
+            setLoading(prev => ({ ...prev, categories: false }));
         }
     }, []);
 
     const fetchTransactions = useCallback(async (year: number, month: number) => {
-        setIsLoading(true);
-        setError(null);
+        setLoading(prev => ({ ...prev, transactions: true }));
         try {
-            const fetchedTransactions = await apiGetTransactions(year, month);
+            const groupId = view.type === 'group' ? view.groupId : undefined;
+            const fetchedTransactions = await apiGetTransactions(year, month, groupId);
             setTransactions(fetchedTransactions);
         } catch (err) {
             setError("Failed to load transactions.");
             console.error(err);
         } finally {
-            setIsLoading(false);
+            setLoading(prev => ({ ...prev, transactions: false }));
         }
-    }, []);
+    }, [view]);
 
-    // 新增一筆交易的函式
+    const fetchSummary = useCallback(async (year: number, month: number) => {
+        setLoading(prev => ({ ...prev, summary: true }));
+        try {
+            const groupId = view.type === 'group' ? view.groupId : undefined;
+            const data = await apiGetTransactionSummary(year, month, groupId);
+            setSummaryData(data);
+        } catch (err) {
+            setError("Failed to load summary data.");
+            console.error(err);
+        } finally {
+            setLoading(prev => ({ ...prev, summary: false }));
+        }
+    }, [view]);
+
     const addTransaction = async (data: TransactionCreatePayload) => {
-        setIsLoading(true);
-        setError(null);
+        setLoading(prev => ({ ...prev, mutating: true }));
         try {
             const newTransaction = await apiCreateTransaction(data);
-            // 成功後，將新交易加到現有的 state 中
             setTransactions(prev => [newTransaction, ...prev]);
         } catch (err) {
             setError("Failed to add transaction.");
             console.error(err);
-            // 重新拋出錯誤，讓呼叫它的 UI 元件也能知道失敗了
             throw err;
         } finally {
-            setIsLoading(false);
+            setLoading(prev => ({ ...prev, mutating: false }));
         }
     };
 
     const editTransaction = async (id: string, data: UpdateTransactionPayload) => {
-        setIsLoading(true);
-        setError(null);
+        setLoading(prev => ({ ...prev, mutating: true }));
         try {
             const updatedTransaction = await apiUpdateTransaction(id, data);
-            // 更新本地狀態陣列中對應的項目
-            setTransactions(prev => prev.map(tx => (tx.id === id ? updatedTransaction : tx)));
+            setTransactions(prev => prev.map(tx => (tx._id === id ? updatedTransaction : tx)));
         } catch (err) {
             setError("Failed to update transaction.");
             console.error(err);
             throw err;
         } finally {
-            setIsLoading(false);
+            setLoading(prev => ({ ...prev, mutating: false }));
         }
     };
 
     const removeTransaction = async (id: string) => {
-        setIsLoading(true);
-        setError(null);
+        setLoading(prev => ({ ...prev, mutating: true }));
         try {
             await apiDeleteTransaction(id);
-            // 從本地狀態陣列中移除該項目
-            setTransactions(prev => prev.filter(tx => tx.id !== id));
+            setTransactions(prev => prev.filter(tx => tx._id !== id));
         } catch (err) {
             setError("Failed to delete transaction.");
             console.error(err);
             throw err;
         } finally {
-            setIsLoading(false);
+            setLoading(prev => ({ ...prev, mutating: false }));
         }
     };
-
-    const summary = useMemo<ExpenseSummary>(() => {
-        const result = transactions.reduce((acc, tx) => {
-            if (tx.type === 'income') {
-                acc.income += tx.amount;
-            } else {
-                acc.expense += tx.amount;
-            }
-            return acc;
-        }, { income: 0, expense: 0 });
-
-        return {
-            ...result,
-            balance: result.income - result.expense
-        };
-    }, [transactions]);
 
     const value = useMemo(() => ({
         categories,
         transactions,
-        summary,
-        isLoading,
+        summaryData,
+        loading,
         error,
         fetchCategories,
         fetchTransactions,
+        fetchSummary,
         addTransaction,
         editTransaction,
-        removeTransaction
-    }), [categories, transactions, summary, isLoading, error, fetchCategories, fetchTransactions]);
+        removeTransaction,
+    }), [categories, transactions, summaryData, loading, error, fetchCategories, fetchTransactions, fetchSummary]);
 
     return (
         <ExpenseContext.Provider value={value}>
@@ -154,7 +150,6 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
     );
 };
 
-// 建立一個 custom hook，讓子元件可以輕鬆地使用 context
 export const useExpenses = () => {
     const context = useContext(ExpenseContext);
     if (context === undefined) {

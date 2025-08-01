@@ -1,7 +1,9 @@
 import React, { useState, useEffect, FormEvent, useMemo } from 'react';
 import { useExpenses } from '../contexts/ExpenseContext';
-import type { Category, Transaction, TransactionCreatePayload, UpdateTransactionPayload } from '../services/api.types';
+import type { Transaction, TransactionCreatePayload } from '../services/api.types';
 import { useAuth } from '../contexts/AuthContext';
+import { useGroups } from '../contexts/GroupContext';
+import { useView } from '../contexts/ViewContext';
 
 // --- 新增/編輯交易的彈出視窗 (Modal) 元件 ---
 const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
@@ -9,9 +11,12 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
     onClose: () => void,
     transactionToEdit: Transaction | null
 }) => {
-    const { addTransaction, editTransaction, categories, isLoading: isContextLoading } = useExpenses();
+    const { addTransaction, editTransaction, categories, loading } = useExpenses();
+    const isContextLoading = loading.mutating;
     const { error: contextError } = useAuth();
-
+    const { user } = useAuth();
+    const { view } = useView();
+    const { groups } = useGroups();
     const isEditMode = !!transactionToEdit;
 
     // 表單狀態
@@ -21,11 +26,21 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
     const [transactionDate, setTransactionDate] = useState(new Date().toISOString().slice(0, 10));
     const [description, setDescription] = useState('');
     const [localError, setLocalError] = useState<string | null>(null);
+    const [payerId, setPayerId] = useState('');
+
+    const currentGroup = useMemo(() => {
+        if (view.type === 'group') {
+            return groups.find(g => g.id === view.groupId);
+        }
+        return null;
+    }, [view, groups]);
+
 
     const resetForm = () => {
         setType('expense'); setAmount(''); setCategoryId('');
         setTransactionDate(new Date().toISOString().slice(0, 10));
         setDescription(''); setLocalError(null);
+        if (user) setPayerId(user.sub);
     };
 
     const handleClose = () => { resetForm(); onClose(); };
@@ -35,14 +50,20 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
             if (isEditMode && transactionToEdit) {
                 setType(transactionToEdit.type);
                 setAmount(String(transactionToEdit.amount));
-                setCategoryId(transactionToEdit.category.id);
-                setTransactionDate(new Date(transactionToEdit.transaction_date).toISOString().slice(0, 10));
+                setCategoryId(transactionToEdit.category._id);
+                const localDate = new Date(transactionToEdit.transaction_date);
+                const year = localDate.getFullYear();
+                const month = String(localDate.getMonth() + 1).padStart(2, '0');
+                const day = String(localDate.getDate()).padStart(2, '0');
+                setTransactionDate(`${year}-${month}-${day}`);
+
                 setDescription(transactionToEdit.description || '');
+                setPayerId(transactionToEdit.payer_id)
             } else {
                 resetForm();
             }
         }
-    }, [isOpen, isEditMode, transactionToEdit]);
+    }, [isOpen, isEditMode, transactionToEdit, categories]);
 
     useEffect(() => {
         if (!isEditMode) { setCategoryId(''); }
@@ -54,13 +75,18 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
         if (!categoryId) { setLocalError('請選擇一個分類'); return; }
         if (parseFloat(amount) <= 0 || isNaN(parseFloat(amount))) { setLocalError('金額必須是正數'); return; }
 
-        const payload = {
+        const payload: any = {
             amount: parseFloat(amount),
             category_id: categoryId,
             description,
             transaction_date: new Date(transactionDate).toISOString(),
             type,
+            payer_id: payerId,
         };
+
+        if (view.type === 'group') {
+            payload.group_id = view.groupId;
+        }
 
         try {
             if (isEditMode && transactionToEdit) {
@@ -71,6 +97,7 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
             handleClose();
         } catch (error) {
             setLocalError('儲存失敗，請再試一次');
+            console.log(error)
         }
     };
 
@@ -105,6 +132,16 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
                         <label htmlFor="description" className="block text-sm font-medium text-gray-700 dark:text-gray-300">描述</label>
                         <textarea id="description" value={description} onChange={(e) => setDescription(e.target.value)} rows={3} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-md"></textarea>
                     </div>
+                    {view.type === 'group' && currentGroup && (
+                        <div>
+                            <label htmlFor="payer" className="block text-sm font-medium text-gray-700 dark:text-gray-300">支付者</label>
+                            <select id="payer" required value={payerId} onChange={(e) => setPayerId(e.target.value)} className="mt-1 block w-full ...">
+                                {currentGroup.members.map(member => (
+                                    <option key={member.id} value={member.id}>{member.email}</option>
+                                ))}
+                            </select>
+                        </div>
+                    )}
                     {(localError || contextError) && <p className="text-sm text-red-500">{localError || contextError}</p>}
                     <div className="flex gap-4 pt-4">
                         <button type="button" onClick={handleClose} className="w-full flex justify-center py-2 px-4 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm text-sm font-medium text-gray-700 dark:text-gray-200 bg-white dark:bg-gray-700 hover:bg-gray-50 dark:hover:bg-gray-600">取消</button>
@@ -148,19 +185,19 @@ const TransactionSummary = ({ income, expense }: { income: number, expense: numb
 
 // --- 主要的交易頁面 ---
 export const TransactionPage = () => {
-    const { transactions, fetchCategories, fetchTransactions, isLoading, removeTransaction } = useExpenses();
+    const { view } = useView()
+    const { transactions, fetchCategories, fetchTransactions, loading, removeTransaction } = useExpenses();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [transactionToEdit, setTransactionToEdit] = useState<Transaction | null>(null);
     const [viewDate, setViewDate] = useState(new Date());
 
-    // ✨ 核心修正：這個 useEffect 現在會監聽 viewDate 的變化
     useEffect(() => {
         const year = viewDate.getFullYear();
         const month = viewDate.getMonth() + 1; // getMonth() returns 0-11
         if (fetchTransactions) {
             fetchTransactions(year, month);
         }
-    }, [viewDate, fetchTransactions]);
+    }, [view, viewDate, fetchTransactions]);
 
     // 這個 useEffect 只在首次載入時獲取分類，避免重複獲取
     useEffect(() => {
@@ -239,7 +276,7 @@ export const TransactionPage = () => {
             />
 
             <div className="space-y-3">
-                {isLoading ? (
+                {loading.transactions ? (
                     <p className="text-center text-gray-500 dark:text-gray-400">載入交易紀錄中...</p>
                 ) : transactions.length > 0 ? (
                     transactions.map(tx => (
