@@ -28,8 +28,8 @@ interface ExpenseContextType {
     fetchTransactions: (year: number, month: number) => Promise<void>;
     fetchSummary: (year: number, month: number) => Promise<void>;
     addTransaction: (data: TransactionCreatePayload) => Promise<void>;
-    editTransaction: (id: string, data: UpdateTransactionPayload) => Promise<void>;
-    removeTransaction: (id: string) => Promise<void>;
+    editTransaction: (id: string, data: UpdateTransactionPayload, viewDate: Date) => Promise<void>;
+    removeTransaction: (id: string, viewDate: Date) => Promise<void>;
 }
 
 const ExpenseContext = createContext<ExpenseContextType | undefined>(undefined);
@@ -87,11 +87,16 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [view]);
 
-    const addTransaction = async (data: TransactionCreatePayload) => {
+    const addTransaction = async (data: TransactionCreatePayload, viewDate: Date) => {
         setLoading(prev => ({ ...prev, mutating: true }));
         try {
-            const newTransaction = await apiCreateTransaction(data);
-            setTransactions(prev => [newTransaction, ...prev]);
+            await apiCreateTransaction(data);
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth() + 1;
+            await Promise.all([
+                fetchTransactions(year, month),
+                fetchSummary(year, month)
+            ]);
         } catch (err) {
             setError("Failed to add transaction.");
             console.error(err);
@@ -101,11 +106,16 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const editTransaction = async (id: string, data: UpdateTransactionPayload) => {
+    const editTransaction = async (id: string, data: UpdateTransactionPayload, viewDate: Date) => {
         setLoading(prev => ({ ...prev, mutating: true }));
         try {
-            const updatedTransaction = await apiUpdateTransaction(id, data);
-            setTransactions(prev => prev.map(tx => (tx._id === id ? updatedTransaction : tx)));
+            await apiUpdateTransaction(id, data);
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth() + 1;
+            await Promise.all([
+                fetchTransactions(year, month),
+                fetchSummary(year, month)
+            ]);
         } catch (err) {
             setError("Failed to update transaction.");
             console.error(err);
@@ -115,11 +125,16 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const removeTransaction = async (id: string) => {
+    const removeTransaction = async (id: string, viewDate: Date) => {
         setLoading(prev => ({ ...prev, mutating: true }));
         try {
             await apiDeleteTransaction(id);
-            setTransactions(prev => prev.filter(tx => tx._id !== id));
+            const year = viewDate.getFullYear();
+            const month = viewDate.getMonth() + 1;
+            await Promise.all([
+                fetchTransactions(year, month),
+                fetchSummary(year, month)
+            ]);
         } catch (err) {
             setError("Failed to delete transaction.");
             console.error(err);

@@ -6,10 +6,11 @@ import { useGroups } from '../contexts/GroupContext';
 import { useView } from '../contexts/ViewContext';
 
 // --- 新增/編輯交易的彈出視窗 (Modal) 元件 ---
-const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
+const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
     isOpen: boolean,
     onClose: () => void,
-    transactionToEdit: Transaction | null
+    transactionToEdit: Transaction | null,
+    viewDate?: Date
 }) => {
     const { addTransaction, editTransaction, categories, loading } = useExpenses();
     const isContextLoading = loading.mutating;
@@ -90,9 +91,9 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit }: {
 
         try {
             if (isEditMode && transactionToEdit) {
-                await editTransaction(transactionToEdit.id, payload);
+                await editTransaction(transactionToEdit.id, payload, viewDate || new Date());
             } else {
-                await addTransaction(payload as TransactionCreatePayload);
+                await addTransaction(payload as TransactionCreatePayload, viewDate || new Date());
             }
             handleClose();
         } catch (error) {
@@ -244,7 +245,7 @@ export const TransactionPage = () => {
 
     const handleDelete = async (id: string) => {
         if (window.confirm('您確定要刪除這筆交易嗎？')) {
-            await removeTransaction(id);
+            await removeTransaction(id, viewDate);
         }
     };
 
@@ -273,6 +274,7 @@ export const TransactionPage = () => {
                 isOpen={isModalOpen}
                 onClose={() => setIsModalOpen(false)}
                 transactionToEdit={transactionToEdit}
+                viewDate={viewDate}  // 傳入當前視圖日期
             />
 
             <div className="space-y-3">
