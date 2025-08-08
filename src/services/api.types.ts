@@ -35,6 +35,12 @@ export interface CategoryCreatePayload {
   color?: string;
 }
 
+export interface UpdateCategoryPayload {
+  name?: string;
+  icon?: string;
+  color?: string;
+}
+
 // Transaction Types
 export interface TransactionCreatePayload {
   type: "expense" | "income";
@@ -57,6 +63,7 @@ export interface Transaction {
   category: {
     id: string;
     name: string;
+    icon?: string;
   };
   created_at: string;
   updated_at: string;

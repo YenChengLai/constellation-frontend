@@ -11,6 +11,7 @@ import type {
   TransactionSummaryResponse,
   UpdateTransactionPayload,
   Group,
+  UpdateCategoryPayload,
 } from "./api.types";
 
 // ✨ 1. 建立一個工廠函式來產生 API Client
@@ -149,6 +150,18 @@ export const createCategory = async (
 ): Promise<Category> => {
   const response = await expenseApiClient.post("/categories", categoryData);
   return response.data;
+};
+
+export const updateCategory = async (
+  id: string,
+  payload: UpdateCategoryPayload
+): Promise<Category> => {
+  const response = await expenseApiClient.patch(`/categories/${id}`, payload);
+  return response.data;
+};
+
+export const deleteCategory = async (id: string): Promise<void> => {
+  await expenseApiClient.delete(`/categories/${id}`);
 };
 
 // --- Transaction API ---

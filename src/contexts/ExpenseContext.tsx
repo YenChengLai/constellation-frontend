@@ -1,6 +1,9 @@
 import React, { createContext, useState, useContext, useMemo, ReactNode, useCallback } from 'react';
 import {
     getCategories as apiGetCategories,
+    createCategory as apiCreateCategory,
+    updateCategory as apiUpdateCategory,
+    deleteCategory as apiDeleteCategory,
     createTransaction as apiCreateTransaction,
     getTransactions as apiGetTransactions,
     updateTransaction as apiUpdateTransaction,
@@ -9,6 +12,15 @@ import {
 } from '../services/api';
 import type { Category, Transaction, TransactionCreatePayload, UpdateTransactionPayload, TransactionSummaryResponse } from '../services/api.types';
 import { useView } from './ViewContext'
+
+import type { CategoryCreatePayload, UpdateCategoryPayload } from '../services/api.types';
+
+interface ExpenseContextType {
+    createCategory: (data: CategoryCreatePayload) => Promise<void>;
+    editCategory: (id: string, data: UpdateCategoryPayload) => Promise<void>;
+    removeCategory: (id: string) => Promise<void>;
+}
+
 
 // ✨ 1. 為讀取狀態建立一個更詳細的型別
 interface LoadingState {
@@ -58,6 +70,47 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
             setLoading(prev => ({ ...prev, categories: false }));
         }
     }, []);
+
+    const createCategory = async (data: CategoryCreatePayload) => {
+        setLoading(prev => ({ ...prev, mutating: true }));
+        try {
+            const newCategory = await apiCreateCategory(data);
+            await setCategories(prev => [...prev, newCategory]);
+        } catch (err) {
+            setError("Failed to create category.");
+            throw err;
+        } finally {
+            setLoading(prev => ({ ...prev, mutating: false }));
+        }
+    };
+
+    const editCategory = async (id: string, data: UpdateCategoryPayload) => {
+        setLoading(prev => ({ ...prev, mutating: true }));
+        try {
+            const updatedCategory = await apiUpdateCategory(id, data);
+            setCategories(prev => prev.map(c => (c.id === id ? updatedCategory : c)));
+            // TODO: 我們也應該觸發一次 transaction 的重取，來更新列表上顯示的分類名稱
+            await fetchCategories();
+        } catch (err) {
+            setError("Failed to update category.");
+            throw err;
+        } finally {
+            setLoading(prev => ({ ...prev, mutating: false }));
+        }
+    };
+
+    const removeCategory = async (id: string) => {
+        setLoading(prev => ({ ...prev, mutating: true }));
+        try {
+            await apiDeleteCategory(id);
+            await setCategories(prev => prev.filter(c => c.id !== id));
+        } catch (err) {
+            setError("Failed to delete category.");
+            throw err;
+        } finally {
+            setLoading(prev => ({ ...prev, mutating: false }));
+        }
+    };
 
     const fetchTransactions = useCallback(async (year: number, month: number) => {
         setLoading(prev => ({ ...prev, transactions: true }));
@@ -156,7 +209,10 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         addTransaction,
         editTransaction,
         removeTransaction,
-    }), [categories, transactions, summaryData, loading, error, fetchCategories, fetchTransactions, fetchSummary]);
+        createCategory,
+        editCategory,
+        removeCategory
+    }), [categories, transactions, summaryData, loading, error, fetchCategories, fetchTransactions, fetchSummary, createCategory, editCategory, removeCategory]);
 
     return (
         <ExpenseContext.Provider value={value}>

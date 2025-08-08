@@ -1,7 +1,15 @@
 import React, { useState, useEffect, createContext, useContext, useMemo, useRef, RefObject } from 'react';
 import { createBrowserRouter, RouterProvider, NavLink, Outlet, useLocation, useNavigate, Link } from 'react-router-dom';
+// 從獨立檔案中引入 Contexts 和 Hooks
 import { useAuth } from './contexts/AuthContext';
+import { useTheme } from './contexts/ThemeContext';
+import { useAnimation } from './contexts/AnimationContext';
+import { useBackgroundEffect } from './contexts/BackgroundEffectContext';
 import { ExpenseProvider } from './contexts/ExpenseContext';
+import { GroupProvider } from './contexts/GroupContext';
+import { ViewProvider } from './contexts/ViewContext';
+
+// 引入頁面和元件
 import { ExpenseDashboardPage } from './pages/ExpenseDashboardPage';
 import { ExpenseCalendarPage } from './pages/ExpenseCalendarPage';
 import { LoginPage } from './pages/LoginPage';
@@ -10,94 +18,12 @@ import { ProtectedRoute } from './components/ProtectedRoute';
 import { SignupPage } from './pages/SignupPage';
 import { ErrorPage } from './pages/ErrorPage';
 import { PendingVerificationPage } from './pages/PendingVerificationPage';
-import { GroupProvider } from './contexts/GroupContext';
-import { ViewProvider } from './contexts/ViewContext';
+
 import { ViewSwitcher } from './components/ViewSwitcher';
+import { CategoryManagementPage } from './pages/CategoryManagementPage';
 
 // --- Custom Hook ---
-function useClickOutside<T extends HTMLElement = HTMLElement>(
-    handler: (event: MouseEvent | TouchEvent) => void,
-): RefObject<T> {
-    const ref = useRef<T>(null);
-    useEffect(() => {
-        const listener = (event: MouseEvent | TouchEvent) => {
-            if (!ref.current || ref.current.contains(event.target as Node)) {
-                return;
-            }
-            handler(event);
-        };
-        document.addEventListener('mousedown', listener);
-        document.addEventListener('touchstart', listener);
-        return () => {
-            document.removeEventListener('mousedown', listener);
-            document.removeEventListener('touchstart', listener);
-        };
-    }, [ref, handler]);
-    return ref;
-}
-
-// --- 1. 全局狀態管理 (Context) ---
-type Theme = 'light' | 'dark';
-type ThemeContextType = { theme: Theme; toggleTheme: () => void; };
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
-export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
-    const [theme, setTheme] = useState<Theme>(() => (localStorage.getItem('theme') as Theme | null) || 'dark');
-    useEffect(() => {
-        document.documentElement.className = theme;
-        localStorage.setItem('theme', theme);
-    }, [theme]);
-    const toggleTheme = () => setTheme(prev => (prev === 'light' ? 'dark' : 'light'));
-    const value = useMemo(() => ({ theme, toggleTheme }), [theme]);
-    return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-};
-export const useTheme = () => {
-    const context = useContext(ThemeContext);
-    if (!context) throw new Error('useTheme must be used within a ThemeProvider');
-    return context;
-};
-
-type AnimationContextType = { isAnimationEnabled: boolean; toggleAnimation: () => void; };
-const AnimationContext = createContext<AnimationContextType | undefined>(undefined);
-export const AnimationProvider = ({ children }: { children: React.ReactNode }) => {
-    const [isAnimationEnabled, setIsAnimationEnabled] = useState(() => {
-        const saved = localStorage.getItem('animationEnabled');
-        return saved !== null ? JSON.parse(saved) : true;
-    });
-    useEffect(() => {
-        const root = document.documentElement;
-        if (isAnimationEnabled) {
-            root.classList.add('animations-enabled');
-        } else {
-            root.classList.remove('animations-enabled');
-        }
-        localStorage.setItem('animationEnabled', JSON.stringify(isAnimationEnabled));
-    }, [isAnimationEnabled]);
-    const toggleAnimation = () => setIsAnimationEnabled(prev => !prev);
-    const value = useMemo(() => ({ isAnimationEnabled, toggleAnimation }), [isAnimationEnabled]);
-    return <AnimationContext.Provider value={value}>{children}</AnimationContext.Provider>;
-};
-export const useAnimation = () => {
-    const context = useContext(AnimationContext);
-    if (!context) throw new Error('useAnimation must be used within a AnimationProvider');
-    return context;
-};
-
-type BackgroundEffectContextType = { isBackgroundEnabled: boolean; toggleBackground: () => void; };
-const BackgroundEffectContext = createContext<BackgroundEffectContextType | undefined>(undefined);
-export const BackgroundEffectProvider = ({ children }: { children: React.ReactNode }) => {
-    const [isBackgroundEnabled, setIsBackgroundEnabled] = useState(() => JSON.parse(localStorage.getItem('backgroundEnabled') || 'true'));
-    useEffect(() => {
-        localStorage.setItem('backgroundEnabled', JSON.stringify(isBackgroundEnabled));
-    }, [isBackgroundEnabled]);
-    const toggleBackground = () => setIsBackgroundEnabled(prev => !prev);
-    const value = useMemo(() => ({ isBackgroundEnabled, toggleBackground }), [isBackgroundEnabled]);
-    return <BackgroundEffectContext.Provider value={value}>{children}</BackgroundEffectContext.Provider>;
-};
-export const useBackgroundEffect = () => {
-    const context = useContext(BackgroundEffectContext);
-    if (!context) throw new Error('useBackgroundEffect must be used within a BackgroundEffectProvider');
-    return context;
-};
+function useClickOutside<T extends HTMLElement = HTMLElement>(handler: (event: MouseEvent | TouchEvent) => void): RefObject<T> { /* ... */ }
 
 
 // --- 2. UI (Components) ---
@@ -188,7 +114,7 @@ const CollapsibleMenuItem = ({ item }: { item: SubNavItemConfig }) => {
 type NavItemConfig = { name: string; path: string; icon: React.ReactNode; children?: SubNavItemConfig[]; };
 const navConfig: NavItemConfig[] = [
     { name: '儀表板', path: '/', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> },
-    { name: '記帳系統', path: '/expenses', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>, children: [{ name: '儀表板', path: '/expenses' }, { name: '交易紀錄', path: '/expenses/transactions' }, { name: '圖表分析', path: '/expenses/charts' }, { name: '日曆檢視', path: '/expenses/calendar' }] },
+    { name: '記帳系統', path: '/expenses', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>, children: [{ name: '儀表板', path: '/expenses' }, { name: '交易紀錄', path: '/expenses/transactions' }, { name: '分類管理', path: '/expenses/categories' }, { name: '日曆檢視', path: '/expenses/calendar' }] },
     { name: '健身紀錄', path: '/fitness', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>, children: [{ name: '訓練日誌', path: '/fitness' }, { name: '動作庫', path: '/fitness/exercises' },] },
 ];
 const userNavConfig: NavItemConfig[] = [
@@ -302,7 +228,7 @@ const router = createBrowserRouter([
                     { index: true, element: <WelcomePage /> },
                     { path: "expenses", element: <ExpenseDashboardPage /> },
                     { path: "expenses/transactions", element: <TransactionPage /> },
-                    { path: "expenses/charts", element: <GenericPage title="圖表分析" /> },
+                    { path: "expenses/categories", element: <CategoryManagementPage /> },
                     { path: "expenses/calendar", element: <ExpenseCalendarPage /> },
                     { path: "fitness", element: <GenericPage title="訓練日誌" /> },
                     { path: "fitness/exercises", element: <GenericPage title="動作庫" /> },
@@ -326,15 +252,7 @@ const router = createBrowserRouter([
 ]);
 
 function App() {
-    return (
-        <BackgroundEffectProvider>
-            <AnimationProvider>
-                <ThemeProvider>
-                    <RouterProvider router={router} />
-                </ThemeProvider>
-            </AnimationProvider>
-        </BackgroundEffectProvider>
-    );
+    return <RouterProvider router={router} />;
 }
 
 export default App;

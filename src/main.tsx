@@ -2,15 +2,21 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
-
-// 1. 引入 AuthProvider
 import { AuthProvider } from './contexts/AuthContext.tsx';
+import { ThemeProvider } from './contexts/ThemeContext.tsx';
+import { AnimationProvider } from './contexts/AnimationContext.tsx';
+import { BackgroundEffectProvider } from './contexts/BackgroundEffectContext.tsx';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
-    {/* 2. 將 AuthProvider 放在最外層 */}
     <AuthProvider>
-      <App />
+      <BackgroundEffectProvider>
+        <AnimationProvider>
+          <ThemeProvider>
+            <App />
+          </ThemeProvider>
+        </AnimationProvider>
+      </BackgroundEffectProvider>
     </AuthProvider>
   </React.StrictMode>,
 );
