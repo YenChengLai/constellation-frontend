@@ -21,6 +21,9 @@ import { PendingVerificationPage } from './pages/PendingVerificationPage';
 
 import { ViewSwitcher } from './components/ViewSwitcher';
 import { CategoryManagementPage } from './pages/CategoryManagementPage';
+import { AdminProtectedRoute } from './components/AdminProtectedRoute';
+import { AdminPage } from './pages/AdminPage';
+
 
 // --- Custom Hook ---
 function useClickOutside<T extends HTMLElement = HTMLElement>(handler: (event: MouseEvent | TouchEvent) => void): RefObject<T> { /* ... */ }
@@ -122,7 +125,8 @@ const userNavConfig: NavItemConfig[] = [
 ];
 
 const MainLayout = () => {
-    const { logout } = useAuth();
+    const { user, logout } = useAuth();
+    const adminEmail = import.meta.env.VITE_ADMIN_EMAIL;
     const location = useLocation();
     const navigate = useNavigate();
     const activeSubMenuConfig = useMemo(() => navConfig.find(item => item.children && location.pathname.startsWith(item.path)), [location.pathname]);
@@ -162,6 +166,13 @@ const MainLayout = () => {
                         return (<button key={item.name} onClick={() => handleMainMenuClick(item)} title={item.name} className={`p-3 rounded-xl transition-colors ${isActive ? 'bg-indigo-500/20 text-indigo-400' : 'text-gray-500 hover:bg-gray-200 dark:hover:bg-white/10'}`}>{item.icon}</button>);
                     })}
                     <button title="使用者名稱" className="w-10 h-10 bg-gray-300 dark:bg-gray-700 rounded-full flex items-center justify-center text-gray-600 dark:text-gray-400 font-semibold">YC</button>
+                    {user?.email === adminEmail && (
+                        <Link to="/admin/users" title="管理" className="p-3 rounded-xl transition-colors text-gray-500 hover:bg-yellow-500/20 hover:text-yellow-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                                <path strokeLinecap="round" strokeLinejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                            </svg>
+                        </Link>
+                    )}
                     <button onClick={handleLogout} title="登出" className="p-3 rounded-xl transition-colors text-gray-500 hover:bg-red-500/20 hover:text-red-400 dark:hover:bg-red-500/10">
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                             <path strokeLinecap="round" strokeLinejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
@@ -233,6 +244,22 @@ const router = createBrowserRouter([
                     { path: "fitness", element: <GenericPage title="訓練日誌" /> },
                     { path: "fitness/exercises", element: <GenericPage title="動作庫" /> },
                     { path: "settings", element: <GenericPage title="設定" /> },
+                ]
+            }
+        ]
+    },
+    {
+        path: "/admin",
+        element: <AdminProtectedRoute />,
+        errorElement: <ErrorPage />, // Admin 區也可以有自己的錯誤頁
+        children: [
+            {
+                // 因為 MainLayout 已經被 ExpenseProvider 包裹，
+                // 為了讓 AdminPage 不受影響，我們在這裡也需要 MainLayout 但不帶 ExpenseProvider
+                path: "users",
+                element: <MainLayout />,
+                children: [
+                    { index: true, element: <AdminPage /> }
                 ]
             }
         ]

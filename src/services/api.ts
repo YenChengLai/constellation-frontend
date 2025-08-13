@@ -12,6 +12,7 @@ import type {
   UpdateTransactionPayload,
   Group,
   UpdateCategoryPayload,
+  UserForAdmin,
 } from "./api.types";
 
 // ✨ 1. 建立一個工廠函式來產生 API Client
@@ -132,6 +133,23 @@ export const removeMemberFromGroup = async (
   const response = await authApiClient.delete(
     `/groups/${groupId}/members/${memberId}`
   );
+  return response.data;
+};
+
+/**
+ * [Admin] 獲取所有未驗證的使用者列表
+ */
+export const getUnverifiedUsers = async (): Promise<UserForAdmin[]> => {
+  const response = await authApiClient.get("/admin/users/unverified");
+  return response.data;
+};
+
+/**
+ * [Admin] 驗證一個指定的使用者
+ * @param userId - 要驗證的使用者的 ID
+ */
+export const verifyUser = async (userId: string): Promise<UserForAdmin> => {
+  const response = await authApiClient.patch(`/admin/users/${userId}/verify`);
   return response.data;
 };
 

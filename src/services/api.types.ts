@@ -106,3 +106,11 @@ export interface Group {
   members: GroupMember[];
   created_at: string;
 }
+
+// --- Admin Types ---
+export interface UserForAdmin {
+  user_id: string;
+  email: string;
+  verified: boolean;
+  created_at: string;
+}
