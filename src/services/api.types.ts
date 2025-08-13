@@ -114,3 +114,22 @@ export interface UserForAdmin {
   verified: boolean;
   created_at: string;
 }
+
+export interface UserUpdatePayload {
+  first_name?: string;
+  last_name?: string;
+}
+
+export interface UserPublic {
+  email: string;
+  first_name: string | null;
+  last_name: string | null;
+  verified: boolean;
+  created_at: string;
+  user_id: string;
+}
+
+export interface ChangePasswordPayload {
+  current_password: string;
+  new_password: string;
+}

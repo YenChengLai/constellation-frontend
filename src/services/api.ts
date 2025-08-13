@@ -13,6 +13,9 @@ import type {
   Group,
   UpdateCategoryPayload,
   UserForAdmin,
+  UserUpdatePayload,
+  UserPublic,
+  ChangePasswordPayload,
 } from "./api.types";
 
 // ✨ 1. 建立一個工廠函式來產生 API Client
@@ -265,4 +268,25 @@ export const deleteTransaction = async (id: string): Promise<void> => {
     console.error(`Failed to delete transaction ${id}:`, error);
     throw error;
   }
+};
+
+/**
+ * 獲取當前登入使用者的完整個人資料
+ */
+export const getMyProfile = async (): Promise<UserPublic> => {
+  const response = await authApiClient.get("/users/me");
+  return response.data;
+};
+
+export const updateMyProfile = async (
+  payload: UserUpdatePayload
+): Promise<UserPublic> => {
+  const response = await authApiClient.patch("/users/me", payload);
+  return response.data;
+};
+
+export const changePassword = async (
+  payload: ChangePasswordPayload
+): Promise<void> => {
+  await authApiClient.post("/users/me/change-password", payload);
 };

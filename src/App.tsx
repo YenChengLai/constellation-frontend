@@ -23,7 +23,7 @@ import { ViewSwitcher } from './components/ViewSwitcher';
 import { CategoryManagementPage } from './pages/CategoryManagementPage';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { AdminPage } from './pages/AdminPage';
-
+import { SettingsPage } from './pages/SettingsPage';
 
 // --- Custom Hook ---
 function useClickOutside<T extends HTMLElement = HTMLElement>(handler: (event: MouseEvent | TouchEvent) => void): RefObject<T> { /* ... */ }
@@ -243,7 +243,7 @@ const router = createBrowserRouter([
                     { path: "expenses/calendar", element: <ExpenseCalendarPage /> },
                     { path: "fitness", element: <GenericPage title="訓練日誌" /> },
                     { path: "fitness/exercises", element: <GenericPage title="動作庫" /> },
-                    { path: "settings", element: <GenericPage title="設定" /> },
+                    { path: "settings", element: <SettingsPage /> },
                 ]
             }
         ]
