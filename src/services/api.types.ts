@@ -21,13 +21,14 @@ export interface SignupResponse {
 
 // Category Types
 export interface Category {
-  id: string;
+  _id: string;
   name: string;
   type: "expense" | "income";
   icon?: string;
   color?: string;
   user_id: string;
 }
+
 export interface CategoryCreatePayload {
   name: string;
   type: "expense" | "income";
@@ -53,7 +54,7 @@ export interface TransactionCreatePayload {
 }
 
 export interface Transaction {
-  id: string;
+  _id: string;
   user_id: string;
   group_id?: string;
   type: "expense" | "income";
@@ -61,7 +62,7 @@ export interface Transaction {
   transaction_date: string;
   description?: string;
   category: {
-    id: string;
+    _id: string;
     name: string;
     icon?: string;
   };
@@ -100,7 +101,7 @@ export interface GroupMember {
 
 // 代表一個完整的群組物件 (從後端 GroupPublic 模型映射)
 export interface Group {
-  id: string;
+  _id: string;
   name: string;
   owner_id: string;
   members: GroupMember[];
@@ -126,7 +127,7 @@ export interface UserPublic {
   last_name: string | null;
   verified: boolean;
   created_at: string;
-  user_id: string;
+  _id: string;
 }
 
 export interface ChangePasswordPayload {

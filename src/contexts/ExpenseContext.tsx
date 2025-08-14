@@ -22,7 +22,6 @@ interface ExpenseContextType {
 }
 
 
-// ✨ 1. 為讀取狀態建立一個更詳細的型別
 interface LoadingState {
     categories: boolean;
     transactions: boolean;
@@ -34,7 +33,7 @@ interface ExpenseContextType {
     categories: Category[];
     transactions: Transaction[];
     summaryData: TransactionSummaryResponse | null;
-    loading: LoadingState; // ✨ 2. 將 isLoading: boolean 換成 loading: LoadingState
+    loading: LoadingState;
     error: string | null;
     fetchCategories: () => Promise<void>;
     fetchTransactions: (year: number, month: number) => Promise<void>;
@@ -51,13 +50,11 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [categories, setCategories] = useState<Category[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [summaryData, setSummaryData] = useState<TransactionSummaryResponse | null>(null);
-    // ✨ 3. 初始化更詳細的讀取狀態
     const [loading, setLoading] = useState<LoadingState>({
         categories: true, transactions: true, summary: true, mutating: false,
     });
     const [error, setError] = useState<string | null>(null);
 
-    // ✨ 4. 每個函式現在只管理自己的讀取狀態
     const fetchCategories = useCallback(async () => {
         setLoading(prev => ({ ...prev, categories: true }));
         try {
@@ -89,7 +86,6 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         try {
             const updatedCategory = await apiUpdateCategory(id, data);
             setCategories(prev => prev.map(c => (c.id === id ? updatedCategory : c)));
-            // TODO: 我們也應該觸發一次 transaction 的重取，來更新列表上顯示的分類名稱
             await fetchCategories();
         } catch (err) {
             setError("Failed to update category.");
@@ -140,16 +136,20 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         }
     }, [view]);
 
+    const reFetchDataForView = async (date: Date) => {
+        const year = date.getFullYear();
+        const month = date.getMonth() + 1;
+        await Promise.all([
+            fetchTransactions(year, month),
+            fetchSummary(year, month)
+        ]);
+    };
+
     const addTransaction = async (data: TransactionCreatePayload, viewDate: Date) => {
         setLoading(prev => ({ ...prev, mutating: true }));
         try {
             await apiCreateTransaction(data);
-            const year = viewDate.getFullYear();
-            const month = viewDate.getMonth() + 1;
-            await Promise.all([
-                fetchTransactions(year, month),
-                fetchSummary(year, month)
-            ]);
+            await reFetchDataForView(viewDate)
         } catch (err) {
             setError("Failed to add transaction.");
             console.error(err);
@@ -163,12 +163,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         setLoading(prev => ({ ...prev, mutating: true }));
         try {
             await apiUpdateTransaction(id, data);
-            const year = viewDate.getFullYear();
-            const month = viewDate.getMonth() + 1;
-            await Promise.all([
-                fetchTransactions(year, month),
-                fetchSummary(year, month)
-            ]);
+            await await reFetchDataForView(viewDate)
         } catch (err) {
             setError("Failed to update transaction.");
             console.error(err);
@@ -182,12 +177,7 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         setLoading(prev => ({ ...prev, mutating: true }));
         try {
             await apiDeleteTransaction(id);
-            const year = viewDate.getFullYear();
-            const month = viewDate.getMonth() + 1;
-            await Promise.all([
-                fetchTransactions(year, month),
-                fetchSummary(year, month)
-            ]);
+            await reFetchDataForView(viewDate)
         } catch (err) {
             setError("Failed to delete transaction.");
             console.error(err);

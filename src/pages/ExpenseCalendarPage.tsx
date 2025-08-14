@@ -25,7 +25,7 @@ export const ExpenseCalendarPage = () => {
 
     const calendarEvents = useMemo(() => {
         return transactions.map(tx => ({
-            id: tx.id,
+            id: tx._id,
             title: `${tx.description || tx.category.name}: ${tx.type === 'expense' ? '-' : '+'}$${tx.amount.toFixed(2)}`,
             start: tx.transaction_date,
             allDay: true,

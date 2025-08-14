@@ -1,7 +1,7 @@
 import React, { useState, useEffect, FormEvent, useMemo } from 'react';
 import Emoji from 'react-emoji-render';
 import { useExpenses } from '../contexts/ExpenseContext';
-import type { Category, Transaction, TransactionCreatePayload, UpdateTransactionPayload } from '../services/api.types';
+import type { Transaction, TransactionCreatePayload } from '../services/api.types';
 import { useAuth } from '../contexts/AuthContext';
 import { useGroups } from '../contexts/GroupContext';
 import { useView } from '../contexts/ViewContext';
@@ -31,7 +31,7 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
 
     const currentGroup = useMemo(() => {
         if (view.type === 'group') {
-            return groups.find(g => g.id === view.groupId);
+            return groups.find(g => g._id === view.groupId);
         }
         return null;
     }, [view, groups]);
@@ -50,7 +50,7 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
             if (isEditMode && transactionToEdit) {
                 setType(transactionToEdit.type);
                 setAmount(String(transactionToEdit.amount));
-                setCategoryId(transactionToEdit.category.id);
+                setCategoryId(transactionToEdit.category._id);
                 const localDate = new Date(transactionToEdit.transaction_date);
                 const year = localDate.getFullYear();
                 const month = String(localDate.getMonth() + 1).padStart(2, '0');
@@ -89,7 +89,7 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
 
         try {
             if (isEditMode && transactionToEdit) {
-                await editTransaction(transactionToEdit.id, payload, viewDate);
+                await editTransaction(transactionToEdit._id, payload, viewDate);
             } else {
                 await addTransaction(payload as TransactionCreatePayload, viewDate);
             }
@@ -120,7 +120,7 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
                         <label htmlFor="category" className="block text-sm font-medium text-gray-700 dark:text-gray-300">分類</label>
                         <select id="category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-md">
                             <option value="" disabled>請選擇一個分類</option>
-                            {filteredCategories.map(cat => <option key={cat.id} value={cat.id}>{cat.name}</option>)}
+                            {filteredCategories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
                         </select>
                     </div>
                     {view.type === 'group' && currentGroup && (
@@ -128,7 +128,7 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
                             <label htmlFor="payer" className="block text-sm font-medium text-gray-700 dark:text-gray-300">支付者</label>
                             <select id="payer" required value={payerId} onChange={(e) => setPayerId(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-md">
                                 {currentGroup.members.map(member => (
-                                    <option key={member.id} value={member.id}>{member.email}</option>
+                                    <option key={member._id} value={member._id}>{member.email}</option>
                                 ))}
                             </select>
                         </div>
@@ -266,7 +266,7 @@ export const TransactionPage = () => {
                         <p className="text-center text-gray-500 dark:text-gray-400 pt-10">載入交易紀錄中...</p>
                     ) : transactions.length > 0 ? (
                         transactions.map(tx => (
-                            <div key={tx.id} className="bg-white dark:bg-gray-800/50 p-4 rounded-lg flex items-center shadow-sm border border-transparent hover:border-indigo-500/50 transition-all">
+                            <div key={tx._id} className="bg-white dark:bg-gray-800/50 p-4 rounded-lg flex items-center shadow-sm border border-transparent hover:border-indigo-500/50 transition-all">
                                 <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center bg-gray-100 dark:bg-gray-700 rounded-lg text-xl mr-4">
                                     <Emoji text={tx.category?.icon || ':file_folder:'} />
                                 </div>
@@ -282,7 +282,7 @@ export const TransactionPage = () => {
                                     <button onClick={() => handleOpenEditModal(tx)} title="編輯" className="p-2 text-gray-500 hover:text-indigo-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" /><path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" /></svg>
                                     </button>
-                                    <button onClick={() => handleDelete(tx.id)} title="刪除" className="p-2 text-gray-500 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
+                                    <button onClick={() => handleDelete(tx._id)} title="刪除" className="p-2 text-gray-500 hover:text-red-500 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full">
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm4 0a1 1 0 012 0v6a1 1 0 11-2 0V8z" clipRule="evenodd" /></svg>
                                     </button>
                                 </div>

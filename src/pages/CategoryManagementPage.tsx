@@ -57,7 +57,7 @@ const CategoryModal = ({ isOpen, onClose, categoryToEdit }: {
         try {
             if (isEditMode && categoryToEdit) {
                 const payload: UpdateCategoryPayload = { name, icon };
-                await editCategory(categoryToEdit.id, payload);
+                await editCategory(categoryToEdit._id, payload);
             } else {
                 const payload: CategoryCreatePayload = { name, type, icon };
                 await createCategory(payload);
@@ -151,6 +151,7 @@ export const CategoryManagementPage = () => {
         if (window.confirm('確定要刪除這個分類嗎？提醒：只有未被任何交易使用的分類才能被刪除。')) {
             try {
                 await removeCategory(id);
+                await fetchCategories();
             } catch (error: any) {
                 alert(error.response?.data?.detail || "刪除失敗");
             }
@@ -163,17 +164,17 @@ export const CategoryManagementPage = () => {
             {loading.categories ? <p>載入中...</p> : (
                 <ul className="space-y-2">
                     {list.map(cat => (
-                        <li key={cat.id} className="flex justify-between items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
+                        <li key={cat._id} className="flex justify-between items-center p-2 rounded-md hover:bg-gray-100 dark:hover:bg-gray-700/50">
                             <span className="flex items-center gap-3">
                                 <span className="text-xl">
                                     <Emoji text={cat.icon || ':file_folder:'} />
                                 </span>
                                 <span>{cat.name}</span>
                             </span>
-                            {cat.user_id === user?.sub && (
+                            {cat.user_id === user?._id && (
                                 <div className="flex gap-2">
                                     <button onClick={() => handleOpenEditModal(cat)} title="編輯" className="p-1 text-gray-500 hover:text-indigo-500">✏️</button>
-                                    <button onClick={() => handleDelete(cat.id)} title="刪除" className="p-1 text-gray-500 hover:text-red-500">🗑️</button>
+                                    <button onClick={() => handleDelete(cat._id)} title="刪除" className="p-1 text-gray-500 hover:text-red-500">🗑️</button>
                                 </div>
                             )}
                         </li>
