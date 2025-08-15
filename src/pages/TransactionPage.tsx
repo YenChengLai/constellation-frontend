@@ -13,7 +13,7 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
     transactionToEdit: Transaction | null,
     viewDate: Date
 }) => {
-    const { addTransaction, editTransaction, categories, loading } = useExpenses();
+    const { addTransaction, editTransaction, categories, accounts, fetchAccounts, loading } = useExpenses();
     const isContextLoading = loading.mutating;
     const { error: contextError } = useAuth();
     const { user } = useAuth();
@@ -28,6 +28,7 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
     const [description, setDescription] = useState('');
     const [localError, setLocalError] = useState<string | null>(null);
     const [payerId, setPayerId] = useState('');
+    const [accountId, setAccountId] = useState('');
 
     const currentGroup = useMemo(() => {
         if (view.type === 'group') {
@@ -41,12 +42,16 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
         setTransactionDate(new Date().toISOString().slice(0, 10));
         setDescription(''); setLocalError(null);
         if (user) setPayerId(user.sub);
+        setAccountId('')
     };
 
     const handleClose = () => { resetForm(); onClose(); };
 
     useEffect(() => {
         if (isOpen) {
+            if (accounts.length === 0) {
+                fetchAccounts();
+            }
             if (isEditMode && transactionToEdit) {
                 setType(transactionToEdit.type);
                 setAmount(String(transactionToEdit.amount));
@@ -58,11 +63,12 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
                 setTransactionDate(`${year}-${month}-${day}`);
                 setDescription(transactionToEdit.description || '');
                 setPayerId(transactionToEdit.payer_id);
+                setAccountId(transactionToEdit.account_id);
             } else {
                 resetForm();
             }
         }
-    }, [isOpen, isEditMode, transactionToEdit, categories]);
+    }, [isOpen, isEditMode, transactionToEdit]);
 
     useEffect(() => {
         if (!isEditMode) { setCategoryId(''); }
@@ -77,6 +83,7 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
         const payload: any = {
             amount: parseFloat(amount),
             category_id: categoryId,
+            account_id: accountId,
             description,
             transaction_date: new Date(transactionDate).toISOString(),
             type,
@@ -121,6 +128,15 @@ const TransactionModal = ({ isOpen, onClose, transactionToEdit, viewDate }: {
                         <select id="category" required value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-md">
                             <option value="" disabled>請選擇一個分類</option>
                             {filteredCategories.map(cat => <option key={cat._id} value={cat._id}>{cat.name}</option>)}
+                        </select>
+                    </div>
+                    <div>
+                        <label htmlFor="account" className="block text-sm font-medium text-gray-700 dark:text-gray-300">帳戶</label>
+                        <select id="account" required value={accountId} onChange={(e) => setAccountId(e.target.value)} className="mt-1 block w-full px-3 py-2 bg-white dark:bg-gray-700/50 border border-gray-300 dark:border-gray-600 rounded-md">
+                            <option value="" disabled>請選擇一個帳戶</option>
+                            {accounts.filter(acc => !acc.is_archived).map(acc => (
+                                <option key={acc._id} value={acc._id}>{acc.name}</option>
+                            ))}
                         </select>
                     </div>
                     {view.type === 'group' && currentGroup && (
@@ -273,6 +289,7 @@ export const TransactionPage = () => {
                                 <div className="flex-1">
                                     <p className="font-bold text-gray-800 dark:text-gray-100">{tx.category.name}</p>
                                     <p className="text-sm text-gray-600 dark:text-gray-400">{tx.description || '無描述'}</p>
+                                    <p className="text-xs text-indigo-500 mt-1">{tx.account?.name || '未知帳戶'}</p>
                                 </div>
                                 <div className="text-right mx-4">
                                     <p className={`font-bold text-lg ${tx.type === 'expense' ? 'text-red-500' : 'text-green-500'}`}>{tx.type === 'expense' ? '-' : '+'} ${tx.amount.toFixed(2)}</p>

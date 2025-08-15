@@ -16,6 +16,9 @@ import type {
   UserUpdatePayload,
   UserPublic,
   ChangePasswordPayload,
+  Account,
+  AccountCreatePayload,
+  UpdateAccountPayload,
 } from "./api.types";
 
 // ✨ 1. 建立一個工廠函式來產生 API Client
@@ -154,6 +157,33 @@ export const getUnverifiedUsers = async (): Promise<UserForAdmin[]> => {
 export const verifyUser = async (userId: string): Promise<UserForAdmin> => {
   const response = await authApiClient.patch(`/admin/users/${userId}/verify`);
   return response.data;
+};
+
+// =============================================================
+//                      Account API
+// =============================================================
+export const getAccounts = async (): Promise<Account[]> => {
+  const response = await expenseApiClient.get("/accounts");
+  return response.data;
+};
+
+export const createAccount = async (
+  payload: AccountCreatePayload
+): Promise<Account> => {
+  const response = await expenseApiClient.post("/accounts", payload);
+  return response.data;
+};
+
+export const updateAccount = async (
+  id: string,
+  payload: UpdateAccountPayload
+): Promise<Account> => {
+  const response = await expenseApiClient.patch(`/accounts/${id}`, payload);
+  return response.data;
+};
+
+export const archiveAccount = async (id: string): Promise<void> => {
+  await expenseApiClient.delete(`/accounts/${id}`);
 };
 
 // --- Category API ---

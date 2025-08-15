@@ -1,5 +1,7 @@
 import React, { createContext, useState, useContext, useMemo, ReactNode, useCallback } from 'react';
 import {
+    getAccounts as apiGetAccounts,
+    createAccount as apiCreateAccount,
     getCategories as apiGetCategories,
     createCategory as apiCreateCategory,
     updateCategory as apiUpdateCategory,
@@ -13,7 +15,7 @@ import {
 import type { Category, Transaction, TransactionCreatePayload, UpdateTransactionPayload, TransactionSummaryResponse } from '../services/api.types';
 import { useView } from './ViewContext'
 
-import type { CategoryCreatePayload, UpdateCategoryPayload } from '../services/api.types';
+import type { Account, AccountCreatePayload, UpdateAccountPayload, CategoryCreatePayload, UpdateCategoryPayload } from '../services/api.types';
 
 interface ExpenseContextType {
     createCategory: (data: CategoryCreatePayload) => Promise<void>;
@@ -27,14 +29,18 @@ interface LoadingState {
     transactions: boolean;
     summary: boolean;
     mutating: boolean; // 用於新增、修改、刪除操作
+    account: boolean;
 }
 
 interface ExpenseContextType {
+    accounts: Account[]
     categories: Category[];
     transactions: Transaction[];
     summaryData: TransactionSummaryResponse | null;
     loading: LoadingState;
     error: string | null;
+    fetchAccounts: () => Promise<void>;
+    addAccount: (data: AccountCreatePayload) => Promise<void>;
     fetchCategories: () => Promise<void>;
     fetchTransactions: (year: number, month: number) => Promise<void>;
     fetchSummary: (year: number, month: number) => Promise<void>;
@@ -50,10 +56,36 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
     const [categories, setCategories] = useState<Category[]>([]);
     const [transactions, setTransactions] = useState<Transaction[]>([]);
     const [summaryData, setSummaryData] = useState<TransactionSummaryResponse | null>(null);
+    const [accounts, setAccounts] = useState<Account[]>([]);
     const [loading, setLoading] = useState<LoadingState>({
-        categories: true, transactions: true, summary: true, mutating: false,
+        categories: true, transactions: true, summary: true, mutating: false, accounts: true
     });
     const [error, setError] = useState<string | null>(null);
+
+    const fetchAccounts = useCallback(async () => {
+        setLoading(prev => ({ ...prev, accounts: true }));
+        try {
+            const fetchedAccounts = await apiGetAccounts();
+            setAccounts(fetchedAccounts);
+        } catch (err) {
+            setError("Failed to load accounts.");
+        } finally {
+            setLoading(prev => ({ ...prev, accounts: false }));
+        }
+    }, []);
+
+    const addAccount = async (data: AccountCreatePayload) => {
+        setLoading(prev => ({ ...prev, mutating: true }));
+        try {
+            await apiCreateAccount(data);
+            await fetchAccounts(); // 新增後重新獲取列表
+        } catch (err) {
+            setError("Failed to add account.");
+            throw err;
+        } finally {
+            setLoading(prev => ({ ...prev, mutating: false }));
+        }
+    };
 
     const fetchCategories = useCallback(async () => {
         setLoading(prev => ({ ...prev, categories: true }));
@@ -201,8 +233,11 @@ export const ExpenseProvider = ({ children }: { children: ReactNode }) => {
         removeTransaction,
         createCategory,
         editCategory,
-        removeCategory
-    }), [categories, transactions, summaryData, loading, error, fetchCategories, fetchTransactions, fetchSummary, createCategory, editCategory, removeCategory]);
+        removeCategory,
+        accounts,
+        fetchAccounts,
+        addAccount,
+    }), [categories, transactions, summaryData, loading, error, fetchCategories, fetchTransactions, fetchSummary, createCategory, editCategory, removeCategory, accounts, fetchAccounts]);
 
     return (
         <ExpenseContext.Provider value={value}>

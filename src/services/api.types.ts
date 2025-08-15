@@ -1,5 +1,37 @@
 // src/services/api.types.ts
 
+// --- Account Types ---
+export type AccountType =
+  | "bank"
+  | "credit_card"
+  | "cash"
+  | "e-wallet"
+  | "investment"
+  | "other";
+
+export interface Account {
+  _id: string;
+  name: string;
+  type: AccountType;
+  initial_balance: number;
+  user_id: string | null;
+  group_id: string | null;
+  balance: number;
+  is_archived: boolean;
+}
+
+export interface AccountCreatePayload {
+  name: string;
+  type: AccountType;
+  initial_balance: number;
+  group_id?: string;
+}
+
+export interface UpdateAccountPayload {
+  name?: string;
+  is_archived?: boolean;
+}
+
 // Auth Types
 export interface LoginCredentials {
   email: string;
@@ -49,6 +81,7 @@ export interface TransactionCreatePayload {
   transaction_date: string; // ISO 8601 string
   description?: string;
   category_id: string;
+  account_id?: string;
   group_id?: string;
   payer_id: string;
 }
@@ -57,6 +90,10 @@ export interface Transaction {
   _id: string;
   user_id: string;
   group_id?: string;
+  account: {
+    _id: string;
+    name: string;
+  };
   type: "expense" | "income";
   amount: number;
   transaction_date: string;
@@ -77,6 +114,7 @@ export interface UpdateTransactionPayload {
   transaction_date?: string;
   description?: string;
   category_id?: string;
+  account_id?: string;
   group_id?: string;
   payer_id: string;
 }

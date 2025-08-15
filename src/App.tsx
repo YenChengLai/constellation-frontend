@@ -24,6 +24,7 @@ import { CategoryManagementPage } from './pages/CategoryManagementPage';
 import { AdminProtectedRoute } from './components/AdminProtectedRoute';
 import { AdminPage } from './pages/AdminPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { AccountManagementPage } from './pages/AccountManagementPage';
 
 // --- Custom Hook ---
 function useClickOutside<T extends HTMLElement = HTMLElement>(handler: (event: MouseEvent | TouchEvent) => void): RefObject<T> { /* ... */ }
@@ -117,7 +118,7 @@ const CollapsibleMenuItem = ({ item }: { item: SubNavItemConfig }) => {
 type NavItemConfig = { name: string; path: string; icon: React.ReactNode; children?: SubNavItemConfig[]; };
 const navConfig: NavItemConfig[] = [
     { name: '儀表板', path: '/', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" /></svg> },
-    { name: '記帳系統', path: '/expenses', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>, children: [{ name: '儀表板', path: '/expenses' }, { name: '交易紀錄', path: '/expenses/transactions' }, { name: '分類管理', path: '/expenses/categories' }, { name: '日曆檢視', path: '/expenses/calendar' }] },
+    { name: '記帳系統', path: '/expenses', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>, children: [{ name: '儀表板', path: '/expenses' }, { name: '帳號管理', path: '/expenses/accounts' }, { name: '交易紀錄', path: '/expenses/transactions' }, { name: '分類管理', path: '/expenses/categories' }, { name: '日曆檢視', path: '/expenses/calendar' }] },
     { name: '健身紀錄', path: '/fitness', icon: <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>, children: [{ name: '訓練日誌', path: '/fitness' }, { name: '動作庫', path: '/fitness/exercises' },] },
 ];
 const userNavConfig: NavItemConfig[] = [
@@ -238,6 +239,7 @@ const router = createBrowserRouter([
                 children: [
                     { index: true, element: <WelcomePage /> },
                     { path: "expenses", element: <ExpenseDashboardPage /> },
+                    { path: "expenses/accounts", element: <AccountManagementPage /> },
                     { path: "expenses/transactions", element: <TransactionPage /> },
                     { path: "expenses/categories", element: <CategoryManagementPage /> },
                     { path: "expenses/calendar", element: <ExpenseCalendarPage /> },
